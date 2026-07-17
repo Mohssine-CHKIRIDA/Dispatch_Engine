@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulsaride.local/contracts/events/request.urgency_score.schema.json",
+  "title": "RequestUrgencyScore",
+  "description": "Published by IA2 (Urgency Scoring) after scoring a request's urgency on a 0-3 scale. Dispatch Core waits for both this event and request.case_embedded before it can act on a request.",
+  "allOf": [
+    { "$ref": "common/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "request.urgency_score" },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3,
+              "description": "0 = non-urgent, 3 = critical/emergency. Drives Dispatch Core's prioritization within the queue."
+            },
+            "rationale": {
+              "type": "string",
+              "description": "Short human-readable explanation for the score, useful for debugging and for the Evaluation report."
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "IA2's confidence in this score."
+            }
+          },
+          "required": ["score", "confidence"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["payload"]
+    }
+  ]
+}

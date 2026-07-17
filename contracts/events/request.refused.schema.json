@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulsaride.local/contracts/events/request.refused.schema.json",
+  "title": "RequestRefused",
+  "description": "Published by Dispatch Core when the proposed professional refuses or times out (FSM transition: proposed -> refused). Dispatch Core is expected to loop back and try the next candidate, which is why Evaluation tracks refusal rate per strategy as a key KPI.",
+  "allOf": [
+    { "$ref": "common/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "request.refused" },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "pro_id": {
+              "type": "string",
+              "description": "ID of the professional who refused (or failed to respond in time)."
+            },
+            "reason": {
+              "type": ["string", "null"],
+              "enum": ["declined", "timeout", "unavailable", null],
+              "description": "Why the proposal didn't result in acceptance."
+            },
+            "retry_count": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "How many professionals have already been tried for this request_id, including this refusal."
+            }
+          },
+          "required": ["pro_id", "retry_count"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["payload"]
+    }
+  ]
+}

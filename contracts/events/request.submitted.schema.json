@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulsaride.local/contracts/events/request.submitted.schema.json",
+  "title": "RequestSubmitted",
+  "description": "Published by Ingestion the moment a patient's raw text request is received. This is the entry point of the whole pipeline — everything downstream (IA1, IA2, IA3, Dispatch Core) traces back to this event via request_id.",
+  "allOf": [
+    { "$ref": "common/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "request.submitted" },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "patient_id": {
+              "type": "string",
+              "description": "Identifier for the patient submitting the request. In this prototype this is a synthetic/simulated ID (no real health data — out of scope per the doc)."
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Raw free-text description of the patient's situation, exactly as submitted. This is the only input IA1 works from."
+            }
+          },
+          "required": ["patient_id", "text"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["payload"]
+    }
+  ]
+}

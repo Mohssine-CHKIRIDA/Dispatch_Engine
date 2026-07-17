@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulsaride.local/contracts/events/pro.profile_updated.schema.json",
+  "title": "ProProfileUpdated",
+  "description": "Published by Pro Registry whenever a professional's profile changes (specialty, description, etc). IA3/matching_db keeps its embedding of the pro's profile in sync by re-embedding on this event.",
+  "allOf": [
+    { "$ref": "common/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "pro.profile_updated" },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "pro_id": {
+              "type": "string",
+              "description": "Professional's unique ID."
+            },
+            "specialty": {
+              "type": "string",
+              "description": "Declared specialty/profession, e.g. 'infirmier', 'médecin généraliste'."
+            },
+            "description": {
+              "type": "string",
+              "description": "Free-text profile description used as the basis for the semantic embedding (this is what gets compared against request.case_embedded via cosine similarity)."
+            }
+          },
+          "required": ["pro_id", "specialty", "description"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["payload"]
+    }
+  ]
+}

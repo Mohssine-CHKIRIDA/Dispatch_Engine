@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulsaride.local/contracts/events/pro.availability_changed.schema.json",
+  "title": "ProAvailabilityChanged",
+  "description": "Published by Pro Registry whenever a professional's availability or current workload changes. Dispatch Core consumes this to keep its candidate pool current without needing to poll Pro Registry synchronously.",
+  "allOf": [
+    { "$ref": "common/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "pro.availability_changed" },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "pro_id": {
+              "type": "string",
+              "description": "Professional's unique ID."
+            },
+            "available": {
+              "type": "boolean",
+              "description": "Whether the professional can currently receive new proposals."
+            },
+            "current_load": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "description": "Number of active cases currently assigned to this professional, if tracked. Used by Dispatch Core to avoid overloading a single pro."
+            }
+          },
+          "required": ["pro_id", "available"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["payload"]
+    }
+  ]
+}

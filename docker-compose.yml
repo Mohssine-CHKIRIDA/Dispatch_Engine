@@ -1,0 +1,60 @@
+
+# ------------------------------------------------------------------
+# Pulsaride — infra layer (Phase 1)
+# Only Redis (event bus + cache) and Postgres (pgvector) for now.
+# Services (Java/Python) will be added to this file in later phases.
+# ------------------------------------------------------------------
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: pulsaride-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: pulsaride-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pulsaride}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pulsaride}
+      POSTGRES_DB: ${POSTGRES_DB:-pulsaride}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # every .sql file here runs once, alphabetically, on first container init
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pulsaride}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Optional: lightweight UI to inspect Redis Streams during dev.
+  # Comment out if you don't want it running.
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: pulsaride-redis-ui
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis_data:
+  postgres_data:

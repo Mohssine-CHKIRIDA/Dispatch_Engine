@@ -1,0 +1,30 @@
+# --- Env / secrets ---
+.env
+
+# --- Java ---
+target/
+*.class
+.gradle/
+build/
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# --- Node / frontend ---
+node_modules/
+dist/
+.next/
+
+# --- IDE ---
+.idea/
+.vscode/
+*.iml
+
+# --- OS ---
+.DS_Store
+
+# --- Docker volumes are named, not bind-mounted, so nothing to ignore there ---

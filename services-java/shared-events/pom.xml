@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.pulsaride</groupId>
+  <artifactId>shared-events</artifactId>
+  <version>0.1.0</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <jsonschema2pojo.version>1.2.1</jsonschema2pojo.version>
+  </properties>
+
+  <dependencies>
+    <!-- Jackson annotations used on the generated POJOs -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.17.1</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.jsonschema2pojo</groupId>
+        <artifactId>jsonschema2pojo-maven-plugin</artifactId>
+        <version>${jsonschema2pojo.version}</version>
+        <configuration>
+          <!-- Points at the shared contracts, one level up from services-java/ -->
+          <sourceDirectory>${project.basedir}/../../contracts/events</sourceDirectory>
+          <targetPackage>com.pulsaride.events</targetPackage>
+          <outputDirectory>${project.basedir}/target/generated-sources/jsonschema2pojo</outputDirectory>
+
+          <!-- Match the Pydantic side: use Jackson, generate builders, keep it simple -->
+          <annotationStyle>jackson2</annotationStyle>
+          <generateBuilders>true</generateBuilders>
+          <includeConstructors>true</includeConstructors>
+          <includeGetters>true</includeGetters>
+          <includeSetters>true</includeSetters>
+          <useTitleAsClassname>true</useTitleAsClassname>
+          <useJodaDates>false</useJodaDates>
+          <dateTimeType>java.time.OffsetDateTime</dateTimeType>
+
+          <!-- IMPORTANT: verify this against your actual output.
+               allOf + $ref (envelope + payload) should generate one POJO per
+               event that extends a shared EventEnvelope class. If instead it
+               flattens/duplicates envelope fields into every class, that's a
+               real limitation to flag back — same class of issue we already
+               caught and fixed on the Python side. Check the very first
+               generated file before trusting the rest. -->
+          <includeJsr303Annotations>true</includeJsr303Annotations>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

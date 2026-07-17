@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulsaride.local/contracts/events/request.extracted.schema.json",
+  "title": "RequestExtracted",
+  "description": "Published by IA1 (NLP Triage) after turning the patient's free text into structured data. Consumed by both IA2 (urgency scoring) and IA3 (matching) — so this shape is the shared 'understanding' of the request that the rest of the pipeline builds on.",
+  "allOf": [
+    { "$ref": "common/envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "request.extracted" },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "raw_text": {
+              "type": "string",
+              "description": "Echo of the original patient text, kept alongside the extraction for traceability and for IA3 embedding fallback."
+            },
+            "symptoms": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Discrete symptoms/complaints identified in the text, e.g. ['douleur thoracique', 'essoufflement']."
+            },
+            "severity_keywords": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Phrases signalling severity/urgency, used as input signal for IA2, e.g. ['depuis ce matin', 'intense']."
+            },
+            "duration_hint": {
+              "type": ["string", "null"],
+              "description": "How long the patient reports the issue has been present, if stated, e.g. '3 jours'."
+            },
+            "specialty_hint": {
+              "type": ["string", "null"],
+              "description": "Free-text guess at the kind of professional needed, e.g. 'cardiologue'. This is NOT an exact tag — IA3 matches it semantically against professional profiles rather than doing exact string matching."
+            },
+            "location_hint": {
+              "type": ["string", "null"],
+              "description": "Location mentioned in the text, if any, e.g. a neighborhood or city."
+            },
+            "age_hint": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "description": "Patient age if mentioned or inferable from text."
+            },
+            "extraction_confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "IA1's confidence in this extraction. Low values may warrant fallback handling downstream."
+            }
+          },
+          "required": ["raw_text", "symptoms", "extraction_confidence"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["payload"]
+    }
+  ]
+}
