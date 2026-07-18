@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulsaride.local/contracts/events/request.urgency_score.schema.json",
+  "title": "RequestUrgencyScore",
+  "description": "Published by IA2 (Urgency Scoring) after scoring a request's urgency on a 0-3 scale. Dispatch Core waits for both this event and request.case_embedded before it can act on a request.",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique ID for this specific event instance (not the request)."
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Correlation ID shared by every event belonging to the same patient request, from submission to closure. This is how Evaluation reconstructs a full request lifecycle across services."
+    },
+    "event_type": {
+      "const": "request.urgency_score"
+    },
+    "version": {
+      "type": "string",
+      "description": "Schema version for this event type, e.g. '1.0'. Bump on breaking changes so consumers can branch on it during migration.",
+      "default": "1.0"
+    },
+    "produced_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of when the producing service emitted this event."
+    },
+    "producer": {
+      "type": "string",
+      "description": "Name of the service that published this event, e.g. 'ingestion', 'nlp-triage'. Useful for debugging and for Evaluation's traceability."
+    },
+    "payload": {
+      "title": "UrgencyScorePayload",
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "description": "0 = non-urgent, 3 = critical/emergency. Drives Dispatch Core's prioritization within the queue."
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Short human-readable explanation for the score, useful for debugging and for the Evaluation report."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "IA2's confidence in this score."
+        }
+      },
+      "required": [
+        "score",
+        "confidence"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "event_id",
+    "request_id",
+    "event_type",
+    "version",
+    "produced_at",
+    "producer",
+    "payload"
+  ],
+  "additionalProperties": false
+}

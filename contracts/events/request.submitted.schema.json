@@ -4,12 +4,17 @@
   "title": "RequestSubmitted",
   "description": "Published by Ingestion the moment a patient's raw text request is received. This is the entry point of the whole pipeline — everything downstream (IA1, IA2, IA3, Dispatch Core) traces back to this event via request_id.",
   "allOf": [
-    { "$ref": "common/envelope.schema.json" },
+    {
+      "$ref": "common/envelope.schema.json"
+    },
     {
       "type": "object",
       "properties": {
-        "event_type": { "const": "request.submitted" },
+        "event_type": {
+          "const": "request.submitted"
+        },
         "payload": {
+          "title": "SubmittedPayload",
           "type": "object",
           "properties": {
             "patient_id": {
@@ -22,11 +27,17 @@
               "description": "Raw free-text description of the patient's situation, exactly as submitted. This is the only input IA1 works from."
             }
           },
-          "required": ["patient_id", "text"],
+          "required": [
+            "patient_id",
+            "text"
+          ],
           "additionalProperties": false
         }
       },
-      "required": ["payload"]
+      "required": [
+        "event_type",
+        "payload"
+      ]
     }
   ]
 }

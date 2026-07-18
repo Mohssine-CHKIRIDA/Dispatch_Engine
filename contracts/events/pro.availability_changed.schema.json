@@ -4,12 +4,17 @@
   "title": "ProAvailabilityChanged",
   "description": "Published by Pro Registry whenever a professional's availability or current workload changes. Dispatch Core consumes this to keep its candidate pool current without needing to poll Pro Registry synchronously.",
   "allOf": [
-    { "$ref": "common/envelope.schema.json" },
+    {
+      "$ref": "common/envelope.schema.json"
+    },
     {
       "type": "object",
       "properties": {
-        "event_type": { "const": "pro.availability_changed" },
+        "event_type": {
+          "const": "pro.availability_changed"
+        },
         "payload": {
+          "title": "AvailabilityChangedPayload",
           "type": "object",
           "properties": {
             "pro_id": {
@@ -21,16 +26,25 @@
               "description": "Whether the professional can currently receive new proposals."
             },
             "current_load": {
-              "type": ["integer", "null"],
+              "type": [
+                "integer",
+                "null"
+              ],
               "minimum": 0,
               "description": "Number of active cases currently assigned to this professional, if tracked. Used by Dispatch Core to avoid overloading a single pro."
             }
           },
-          "required": ["pro_id", "available"],
+          "required": [
+            "pro_id",
+            "available"
+          ],
           "additionalProperties": false
         }
       },
-      "required": ["payload"]
+      "required": [
+        "event_type",
+        "payload"
+      ]
     }
   ]
 }

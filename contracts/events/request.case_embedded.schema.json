@@ -4,17 +4,24 @@
   "title": "RequestCaseEmbedded",
   "description": "Published by IA3 (Matching) after computing a semantic embedding of the request. Dispatch Core uses this vector to find the professional with the highest cosine similarity via pgvector, for the semantic-matching strategies (S3/S4).",
   "allOf": [
-    { "$ref": "common/envelope.schema.json" },
+    {
+      "$ref": "common/envelope.schema.json"
+    },
     {
       "type": "object",
       "properties": {
-        "event_type": { "const": "request.case_embedded" },
+        "event_type": {
+          "const": "request.case_embedded"
+        },
         "payload": {
+          "title": "CaseEmbeddedPayload",
           "type": "object",
           "properties": {
             "embedding": {
               "type": "array",
-              "items": { "type": "number" },
+              "items": {
+                "type": "number"
+              },
               "minItems": 1,
               "description": "The embedding vector for this request's case. Length must match `dimension` and the pgvector column dimension in matching_db."
             },
@@ -28,11 +35,18 @@
               "description": "Identifier of the sentence-transformers model used, e.g. 'sentence-transformers/all-MiniLM-L6-v2'. Needed so Evaluation/Dispatch never compare vectors produced by two different models."
             }
           },
-          "required": ["embedding", "dimension", "embedding_model"],
+          "required": [
+            "embedding",
+            "dimension",
+            "embedding_model"
+          ],
           "additionalProperties": false
         }
       },
-      "required": ["payload"]
+      "required": [
+        "event_type",
+        "payload"
+      ]
     }
   ]
 }

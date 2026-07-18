@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulsaride.local/contracts/events/request.accepted.schema.json",
+  "title": "RequestAccepted",
+  "description": "Published by Dispatch Core when the proposed professional accepts the request (FSM transition: proposed -> accepted). This is generally followed by request.closed once the case wraps up.",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique ID for this specific event instance (not the request)."
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Correlation ID shared by every event belonging to the same patient request, from submission to closure. This is how Evaluation reconstructs a full request lifecycle across services."
+    },
+    "event_type": {
+      "const": "request.accepted"
+    },
+    "version": {
+      "type": "string",
+      "description": "Schema version for this event type, e.g. '1.0'. Bump on breaking changes so consumers can branch on it during migration.",
+      "default": "1.0"
+    },
+    "produced_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of when the producing service emitted this event."
+    },
+    "producer": {
+      "type": "string",
+      "description": "Name of the service that published this event, e.g. 'ingestion', 'nlp-triage'. Useful for debugging and for Evaluation's traceability."
+    },
+    "payload": {
+      "title": "AcceptedPayload",
+      "type": "object",
+      "properties": {
+        "pro_id": {
+          "type": "string",
+          "description": "ID of the professional who accepted."
+        },
+        "ttfa_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Time-to-first-assignment: seconds elapsed between request.submitted and this acceptance. One of the key KPIs Evaluation compares across strategies."
+        }
+      },
+      "required": [
+        "pro_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "event_id",
+    "request_id",
+    "event_type",
+    "version",
+    "produced_at",
+    "producer",
+    "payload"
+  ],
+  "additionalProperties": false
+}

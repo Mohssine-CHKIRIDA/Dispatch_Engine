@@ -4,12 +4,17 @@
   "title": "RequestProposed",
   "description": "Published by Dispatch Core when it selects and proposes a professional for a request (FSM transition: queued -> proposed). Notification Gateway pushes this to the professional's client.",
   "allOf": [
-    { "$ref": "common/envelope.schema.json" },
+    {
+      "$ref": "common/envelope.schema.json"
+    },
     {
       "type": "object",
       "properties": {
-        "event_type": { "const": "request.proposed" },
+        "event_type": {
+          "const": "request.proposed"
+        },
         "payload": {
+          "title": "ProposedPayload",
           "type": "object",
           "properties": {
             "pro_id": {
@@ -18,24 +23,41 @@
             },
             "strategy": {
               "type": "string",
-              "enum": ["S1", "S2", "S3", "S4"],
+              "enum": [
+                "S1",
+                "S2",
+                "S3",
+                "S4"
+              ],
               "description": "Which matching strategy produced this proposal, so Evaluation can attribute outcomes to a strategy. S1/S2 = classic tag-based matching, S3/S4 = semantic embedding-based matching."
             },
             "match_score": {
-              "type": ["number", "null"],
+              "type": [
+                "number",
+                "null"
+              ],
               "description": "Cosine similarity or ranking score behind this choice, if the strategy produces one (null for purely rule-based strategies)."
             },
             "expires_at": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "format": "date-time",
               "description": "Deadline by which the pro must respond before Dispatch Core times the proposal out and tries the next candidate."
             }
           },
-          "required": ["pro_id", "strategy"],
+          "required": [
+            "pro_id",
+            "strategy"
+          ],
           "additionalProperties": false
         }
       },
-      "required": ["payload"]
+      "required": [
+        "event_type",
+        "payload"
+      ]
     }
   ]
 }

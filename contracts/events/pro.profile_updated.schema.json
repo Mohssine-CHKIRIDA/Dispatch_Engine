@@ -4,12 +4,17 @@
   "title": "ProProfileUpdated",
   "description": "Published by Pro Registry whenever a professional's profile changes (specialty, description, etc). IA3/matching_db keeps its embedding of the pro's profile in sync by re-embedding on this event.",
   "allOf": [
-    { "$ref": "common/envelope.schema.json" },
+    {
+      "$ref": "common/envelope.schema.json"
+    },
     {
       "type": "object",
       "properties": {
-        "event_type": { "const": "pro.profile_updated" },
+        "event_type": {
+          "const": "pro.profile_updated"
+        },
         "payload": {
+          "title": "ProfileUpdatedPayload",
           "type": "object",
           "properties": {
             "pro_id": {
@@ -25,11 +30,18 @@
               "description": "Free-text profile description used as the basis for the semantic embedding (this is what gets compared against request.case_embedded via cosine similarity)."
             }
           },
-          "required": ["pro_id", "specialty", "description"],
+          "required": [
+            "pro_id",
+            "specialty",
+            "description"
+          ],
           "additionalProperties": false
         }
       },
-      "required": ["payload"]
+      "required": [
+        "event_type",
+        "payload"
+      ]
     }
   ]
 }

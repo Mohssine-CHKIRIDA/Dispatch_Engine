@@ -23,6 +23,14 @@
       <artifactId>jackson-databind</artifactId>
       <version>2.17.1</version>
     </dependency>
+    <!-- Needed because includeJsr303Annotations generates @NotNull / @Valid on every
+         required field. Using jakarta.* here (not javax.*) to match Spring Boot 3,
+         which moved to the Jakarta EE namespace. -->
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+      <version>3.0.2</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -32,8 +40,16 @@
         <artifactId>jsonschema2pojo-maven-plugin</artifactId>
         <version>${jsonschema2pojo.version}</version>
         <configuration>
-          <!-- Points at the shared contracts, one level up from services-java/ -->
-          <sourceDirectory>${project.basedir}/../../contracts/events</sourceDirectory>
+          <!-- Points at flattened, single-file schemas (no allOf/$ref) — see
+               scripts/flatten-schemas-for-java.py. jsonschema2pojo 1.2.1 was
+               confirmed (via -X debug log) to silently skip any schema using
+               root-level allOf + a $ref to an external file: it reads the
+               file but never emits a class, with no warning or error. Run
+               the flatten script first, whenever contracts/events changes:
+                   python3 ../../scripts/flatten-schemas-for-java.py
+               contracts/events/ remains the real source of truth; this
+               flattened folder is a generated build artifact (gitignored). -->
+          <sourceDirectory>${project.basedir}/../../contracts/events-flattened</sourceDirectory>
           <targetPackage>com.pulsaride.events</targetPackage>
           <outputDirectory>${project.basedir}/target/generated-sources/jsonschema2pojo</outputDirectory>
 
@@ -47,14 +63,14 @@
           <useJodaDates>false</useJodaDates>
           <dateTimeType>java.time.OffsetDateTime</dateTimeType>
 
-          <!-- IMPORTANT: verify this against your actual output.
-               allOf + $ref (envelope + payload) should generate one POJO per
-               event that extends a shared EventEnvelope class. If instead it
-               flattens/duplicates envelope fields into every class, that's a
-               real limitation to flag back — same class of issue we already
-               caught and fixed on the Python side. Check the very first
-               generated file before trusting the rest. -->
+          <!-- Note: each generated class is now flat (all envelope fields +
+               payload duplicated per class) rather than extending a shared
+               EventEnvelope base — a deliberate tradeoff to work around the
+               allOf/$ref limitation above. The Python side still uses real
+               inheritance via EventEnvelope, since datamodel-code-generator
+               handles allOf/$ref correctly. -->
           <includeJsr303Annotations>true</includeJsr303Annotations>
+          <useJakartaValidation>true</useJakartaValidation>
         </configuration>
         <executions>
           <execution>

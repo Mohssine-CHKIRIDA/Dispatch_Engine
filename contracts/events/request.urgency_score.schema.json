@@ -4,12 +4,17 @@
   "title": "RequestUrgencyScore",
   "description": "Published by IA2 (Urgency Scoring) after scoring a request's urgency on a 0-3 scale. Dispatch Core waits for both this event and request.case_embedded before it can act on a request.",
   "allOf": [
-    { "$ref": "common/envelope.schema.json" },
+    {
+      "$ref": "common/envelope.schema.json"
+    },
     {
       "type": "object",
       "properties": {
-        "event_type": { "const": "request.urgency_score" },
+        "event_type": {
+          "const": "request.urgency_score"
+        },
         "payload": {
+          "title": "UrgencyScorePayload",
           "type": "object",
           "properties": {
             "score": {
@@ -29,11 +34,17 @@
               "description": "IA2's confidence in this score."
             }
           },
-          "required": ["score", "confidence"],
+          "required": [
+            "score",
+            "confidence"
+          ],
           "additionalProperties": false
         }
       },
-      "required": ["payload"]
+      "required": [
+        "event_type",
+        "payload"
+      ]
     }
   ]
 }

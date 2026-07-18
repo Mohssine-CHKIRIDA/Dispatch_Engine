@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulsaride.local/contracts/events/request.proposed.schema.json",
+  "title": "RequestProposed",
+  "description": "Published by Dispatch Core when it selects and proposes a professional for a request (FSM transition: queued -> proposed). Notification Gateway pushes this to the professional's client.",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique ID for this specific event instance (not the request)."
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Correlation ID shared by every event belonging to the same patient request, from submission to closure. This is how Evaluation reconstructs a full request lifecycle across services."
+    },
+    "event_type": {
+      "const": "request.proposed"
+    },
+    "version": {
+      "type": "string",
+      "description": "Schema version for this event type, e.g. '1.0'. Bump on breaking changes so consumers can branch on it during migration.",
+      "default": "1.0"
+    },
+    "produced_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of when the producing service emitted this event."
+    },
+    "producer": {
+      "type": "string",
+      "description": "Name of the service that published this event, e.g. 'ingestion', 'nlp-triage'. Useful for debugging and for Evaluation's traceability."
+    },
+    "payload": {
+      "title": "ProposedPayload",
+      "type": "object",
+      "properties": {
+        "pro_id": {
+          "type": "string",
+          "description": "ID of the professional being proposed, from Pro Registry."
+        },
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "S1",
+            "S2",
+            "S3",
+            "S4"
+          ],
+          "description": "Which matching strategy produced this proposal, so Evaluation can attribute outcomes to a strategy. S1/S2 = classic tag-based matching, S3/S4 = semantic embedding-based matching."
+        },
+        "match_score": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Cosine similarity or ranking score behind this choice, if the strategy produces one (null for purely rule-based strategies)."
+        },
+        "expires_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "Deadline by which the pro must respond before Dispatch Core times the proposal out and tries the next candidate."
+        }
+      },
+      "required": [
+        "pro_id",
+        "strategy"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "event_id",
+    "request_id",
+    "event_type",
+    "version",
+    "produced_at",
+    "producer",
+    "payload"
+  ],
+  "additionalProperties": false
+}

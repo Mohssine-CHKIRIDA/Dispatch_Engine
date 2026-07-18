@@ -4,25 +4,41 @@
   "title": "RequestClosed",
   "description": "Published by Dispatch Core when a request reaches a terminal FSM state, successful or not. This is the final event in a request's lifecycle and the one Evaluation waits for to compute per-request KPIs.",
   "allOf": [
-    { "$ref": "common/envelope.schema.json" },
+    {
+      "$ref": "common/envelope.schema.json"
+    },
     {
       "type": "object",
       "properties": {
-        "event_type": { "const": "request.closed" },
+        "event_type": {
+          "const": "request.closed"
+        },
         "payload": {
+          "title": "ClosedPayload",
           "type": "object",
           "properties": {
             "outcome": {
               "type": "string",
-              "enum": ["dispatched", "cancelled", "no_professional_available", "timeout"],
+              "enum": [
+                "dispatched",
+                "cancelled",
+                "no_professional_available",
+                "timeout"
+              ],
               "description": "Terminal outcome of the request."
             },
             "pro_id": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "description": "Professional ultimately assigned, if outcome is 'dispatched'; null otherwise."
             },
             "ttfa_seconds": {
-              "type": ["number", "null"],
+              "type": [
+                "number",
+                "null"
+              ],
               "minimum": 0,
               "description": "Final time-to-first-assignment for this request, for KPI aggregation."
             },
@@ -32,11 +48,17 @@
               "description": "Total number of professionals who refused/timed-out before closure."
             }
           },
-          "required": ["outcome", "total_refusals"],
+          "required": [
+            "outcome",
+            "total_refusals"
+          ],
           "additionalProperties": false
         }
       },
-      "required": ["payload"]
+      "required": [
+        "event_type",
+        "payload"
+      ]
     }
   ]
 }

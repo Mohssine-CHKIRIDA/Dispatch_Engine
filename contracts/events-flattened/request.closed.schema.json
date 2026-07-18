@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulsaride.local/contracts/events/request.closed.schema.json",
+  "title": "RequestClosed",
+  "description": "Published by Dispatch Core when a request reaches a terminal FSM state, successful or not. This is the final event in a request's lifecycle and the one Evaluation waits for to compute per-request KPIs.",
+  "type": "object",
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique ID for this specific event instance (not the request)."
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Correlation ID shared by every event belonging to the same patient request, from submission to closure. This is how Evaluation reconstructs a full request lifecycle across services."
+    },
+    "event_type": {
+      "const": "request.closed"
+    },
+    "version": {
+      "type": "string",
+      "description": "Schema version for this event type, e.g. '1.0'. Bump on breaking changes so consumers can branch on it during migration.",
+      "default": "1.0"
+    },
+    "produced_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of when the producing service emitted this event."
+    },
+    "producer": {
+      "type": "string",
+      "description": "Name of the service that published this event, e.g. 'ingestion', 'nlp-triage'. Useful for debugging and for Evaluation's traceability."
+    },
+    "payload": {
+      "title": "ClosedPayload",
+      "type": "object",
+      "properties": {
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "dispatched",
+            "cancelled",
+            "no_professional_available",
+            "timeout"
+          ],
+          "description": "Terminal outcome of the request."
+        },
+        "pro_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Professional ultimately assigned, if outcome is 'dispatched'; null otherwise."
+        },
+        "ttfa_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Final time-to-first-assignment for this request, for KPI aggregation."
+        },
+        "total_refusals": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of professionals who refused/timed-out before closure."
+        }
+      },
+      "required": [
+        "outcome",
+        "total_refusals"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "event_id",
+    "request_id",
+    "event_type",
+    "version",
+    "produced_at",
+    "producer",
+    "payload"
+  ],
+  "additionalProperties": false
+}

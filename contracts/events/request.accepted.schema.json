@@ -4,12 +4,17 @@
   "title": "RequestAccepted",
   "description": "Published by Dispatch Core when the proposed professional accepts the request (FSM transition: proposed -> accepted). This is generally followed by request.closed once the case wraps up.",
   "allOf": [
-    { "$ref": "common/envelope.schema.json" },
+    {
+      "$ref": "common/envelope.schema.json"
+    },
     {
       "type": "object",
       "properties": {
-        "event_type": { "const": "request.accepted" },
+        "event_type": {
+          "const": "request.accepted"
+        },
         "payload": {
+          "title": "AcceptedPayload",
           "type": "object",
           "properties": {
             "pro_id": {
@@ -17,16 +22,24 @@
               "description": "ID of the professional who accepted."
             },
             "ttfa_seconds": {
-              "type": ["number", "null"],
+              "type": [
+                "number",
+                "null"
+              ],
               "minimum": 0,
               "description": "Time-to-first-assignment: seconds elapsed between request.submitted and this acceptance. One of the key KPIs Evaluation compares across strategies."
             }
           },
-          "required": ["pro_id"],
+          "required": [
+            "pro_id"
+          ],
           "additionalProperties": false
         }
       },
-      "required": ["payload"]
+      "required": [
+        "event_type",
+        "payload"
+      ]
     }
   ]
 }
