@@ -2,8 +2,8 @@
 .env
 
 # --- Java ---
-target/
-*.class
+#target/
+#*.class
 .gradle/
 build/
 
