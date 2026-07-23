@@ -185,9 +185,9 @@ public class CaseEmbeddedPayload {
     @Override
     public int hashCode() {
         int result = 1;
-        result = ((result* 31)+((this.embedding == null)? 0 :this.embedding.hashCode()));
         result = ((result* 31)+((this.embeddingModel == null)? 0 :this.embeddingModel.hashCode()));
         result = ((result* 31)+((this.dimension == null)? 0 :this.dimension.hashCode()));
+        result = ((result* 31)+((this.embedding == null)? 0 :this.embedding.hashCode()));
         return result;
     }
 
@@ -200,7 +200,7 @@ public class CaseEmbeddedPayload {
             return false;
         }
         CaseEmbeddedPayload rhs = ((CaseEmbeddedPayload) other);
-        return ((((this.embedding == rhs.embedding)||((this.embedding!= null)&&this.embedding.equals(rhs.embedding)))&&((this.embeddingModel == rhs.embeddingModel)||((this.embeddingModel!= null)&&this.embeddingModel.equals(rhs.embeddingModel))))&&((this.dimension == rhs.dimension)||((this.dimension!= null)&&this.dimension.equals(rhs.dimension))));
+        return ((((this.embeddingModel == rhs.embeddingModel)||((this.embeddingModel!= null)&&this.embeddingModel.equals(rhs.embeddingModel)))&&((this.dimension == rhs.dimension)||((this.dimension!= null)&&this.dimension.equals(rhs.dimension))))&&((this.embedding == rhs.embedding)||((this.embedding!= null)&&this.embedding.equals(rhs.embedding))));
     }
 
 }
