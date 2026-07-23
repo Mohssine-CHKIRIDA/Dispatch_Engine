@@ -13,6 +13,7 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+services-python/nlp-triage/.env
 
 # --- Node / frontend ---
 node_modules/
