@@ -12,11 +12,7 @@ def main() -> None:
     )
 
     settings = load_settings()
-    extraction_client = ExtractionClient(
-        api_key=settings.nvidia_api_key,
-        base_url=settings.nvidia_base_url,
-        model=settings.llm_model,
-    )
+    extraction_client = ExtractionClient(gateway_url=settings.gateway_url)
     consumer = TriageConsumer(settings, extraction_client)
     consumer.run_forever()
 

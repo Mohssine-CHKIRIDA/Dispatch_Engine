@@ -1,25 +1,25 @@
 """
-Calls Kimi K2.6, hosted as an NVIDIA NIM endpoint, with a forced
-function call so the response is always a well-formed structured
-object, never free text we'd have to hope is valid JSON. This is the
-"first LLM" in the pipeline: triage extraction only. It does not
-diagnose, prescribe, or give medical advice - it turns the patient's
-free text into structured routing signals that urgency-scoring and
-matching consume next.
+Calls the Pulsaride LLM Gateway with a forced tool call so the response
+is always a well-formed structured object, never free text we'd have to
+hope is valid JSON. This is the "first LLM" in the pipeline: triage
+extraction only. It does not diagnose, prescribe, or give medical
+advice - it turns the patient's free text into structured routing
+signals that urgency-scoring and matching consume next.
 
-NVIDIA's integrate.api.nvidia.com endpoint is OpenAI-compatible, so we
-use the `openai` SDK pointed at NVIDIA's base_url rather than raw
-`requests` calls or a Moonshot-specific SDK. If you ever move off
-NVIDIA (straight to Moonshot, or a self-hosted vLLM deployment), only
-the base_url/model name/api key change - this client code stays as is.
+This used to call NVIDIA's integrate.api.nvidia.com endpoint directly
+via the `openai` SDK. It now goes through the Gateway's /v1/complete
+instead, so caching, provider fallback (NVIDIA -> Ollama), and any
+future provider swap are centralized in one place rather than
+duplicated in every service that needs an LLM. The Gateway is
+responsible for actually talking to NVIDIA/Kimi (or whichever provider
+is configured) - this client only knows about the Gateway's HTTP API.
 """
 
 from __future__ import annotations
 
-import json
 import uuid
 
-from openai import OpenAI
+import httpx
 
 from .models import Extraction, RequestExtracted
 
@@ -98,40 +98,51 @@ EXTRACTION_FUNCTION = {
 }
 
 
+class GatewayError(Exception):
+    """Raised when the Gateway can't produce a usable extraction."""
+
+
 class ExtractionClient:
-    def __init__(self, api_key: str, base_url: str, model: str):
-        self._client = OpenAI(api_key=api_key, base_url=base_url)
-        self._model = model
+    def __init__(self, gateway_url: str, timeout: float = 30.0):
+        self._gateway_url = gateway_url.rstrip("/")
+        self._timeout = timeout
 
     def extract(self, raw_text: str, request_id: uuid.UUID) -> RequestExtracted:
-        response = self._client.chat.completions.create(
-            model=self._model,
-            extra_body={"chat_template_kwargs": {"thinking": False}},
-            temperature=0.6,
-            tools=[EXTRACTION_FUNCTION],
-            tool_choice={
-                "type": "function",
-                "function": {"name": "extract_patient_request"},
-            },
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Patient request:\n\n{raw_text}"},
-            ],
-        )
+        try:
+            response = httpx.post(
+                f"{self._gateway_url}/v1/complete",
+                json={
+                    "system_prompt": SYSTEM_PROMPT,
+                    "user_prompt": f"Patient request:\n\n{raw_text}",
+                    "temperature": 0.6,
+                    "tools": [EXTRACTION_FUNCTION],
+                    "tool_choice": {
+                        "type": "function",
+                        "function": {"name": "extract_patient_request"},
+                    },
+                },
+                timeout=self._timeout,
+            )
+        except httpx.HTTPError as exc:
+            raise GatewayError(f"Could not reach LLM Gateway: {exc}") from exc
 
-        message = response.choices[0].message
-        if not message.tool_calls:
-            raise RuntimeError(
-                "Kimi did not return a tool call despite tool_choice being forced "
-                f"(finish_reason={response.choices[0].finish_reason})"
+        if response.status_code != 200:
+            raise GatewayError(
+                f"LLM Gateway returned {response.status_code}: {response.text}"
             )
 
-        tool_call = message.tool_calls[0]
-        arguments = json.loads(tool_call.function.arguments)
-        extraction = Extraction.model_validate(arguments)
+        data = response.json()
+        tool_call = data.get("tool_call")
+        if not tool_call:
+            raise GatewayError(
+                "LLM Gateway did not return a tool call despite tool_choice "
+                "being forced"
+            )
+
+        extraction = Extraction.model_validate(tool_call["arguments"])
 
         return RequestExtracted.build(
             request_id=request_id,
-            model=self._model,
+            model=data["model"],
             extraction=extraction,
         )

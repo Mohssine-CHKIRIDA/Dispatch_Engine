@@ -54,7 +54,15 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
 
 volumes:
   redis_data:
   postgres_data:
+  ollama_data:
