@@ -21,7 +21,7 @@ import uuid
 
 import httpx
 
-from .models import Extraction, RequestExtracted
+from models import Extraction, RequestExtracted
 
 SYSTEM_PROMPT = (
     "You are a triage information-extraction assistant for a patient "

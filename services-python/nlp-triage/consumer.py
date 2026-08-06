@@ -7,9 +7,9 @@ import uuid
 
 import redis
 
-from .config import Settings
-from .llm_client import ExtractionClient
-from .models import RequestSubmitted
+from config import Settings
+from llm_client import ExtractionClient
+from models import RequestSubmitted
 
 log = logging.getLogger("nlp_triage.consumer")
 
@@ -25,6 +25,10 @@ class TriageConsumer:
         )
         self._consumer_name = f"{socket.gethostname()}-{uuid.uuid4().hex[:8]}"
         self._ensure_group_exists()
+        print(f"[DEBUG] XLEN via python client = {self._redis.xlen(settings.source_stream)}")
+        print(f"[DEBUG] Connecting to redis at {settings.redis_host}:{settings.redis_port}")
+        print(f"[DEBUG] PING -> {self._redis.ping()}")
+        print(f"[DEBUG] source_stream={settings.source_stream!r} group={settings.consumer_group!r}")
 
     def _ensure_group_exists(self) -> None:
         try:
@@ -40,7 +44,6 @@ class TriageConsumer:
                 self._settings.source_stream,
             )
         except redis.exceptions.ResponseError as e:
-            # BUSYGROUP means it already exists - fine, not an error.
             if "BUSYGROUP" not in str(e):
                 raise
 
@@ -60,16 +63,20 @@ class TriageConsumer:
             consumername=self._consumer_name,
             streams={self._settings.source_stream: ">"},
             count=10,
-            block=5000,  # ms
+            block=5000,
         )
+        print(f"[DEBUG] xreadgroup response = {response!r}")
+
         if not response:
-            return  # timed out, nothing new - loop again
+            return
 
         for _stream_key, messages in response:
             for message_id, fields in messages:
                 self._handle_message(message_id, fields)
 
     def _handle_message(self, message_id: str, fields: dict) -> None:
+        print(f"[DEBUG] got message_id={message_id} fields={fields!r}")
+
         try:
             payload = json.loads(fields["payload"])
             submitted = RequestSubmitted.model_validate(payload)
@@ -89,11 +96,9 @@ class TriageConsumer:
                 extracted.extraction.confidence,
             )
 
-        except Exception:
-            # Deliberately do NOT ack on failure. The message stays
-            # "pending" in the consumer group (visible via XPENDING) and
-            # can be retried/reclaimed later (XCLAIM) instead of being
-            # silently lost.
+        except Exception as e:
+            print(f"[DEBUG] EXCEPTION: {type(e).__name__}: {e}")
+
             log.exception("Failed to process message_id=%s", message_id)
 
     def _publish(self, extracted) -> None:

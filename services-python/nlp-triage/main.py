@@ -1,8 +1,8 @@
 import logging
 
-from .config import load_settings
-from .consumer import TriageConsumer
-from .llm_client import ExtractionClient
+from config import load_settings
+from consumer import TriageConsumer
+from llm_client import ExtractionClient
 
 
 def main() -> None:
