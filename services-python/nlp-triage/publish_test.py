@@ -20,19 +20,21 @@ from datetime import datetime, timezone
 import redis
 
 
-def build_event(raw_text: str) -> dict:
-    """Build a request.submitted event matching the SubmittedPayload contract."""
+def build_event(raw_text: str, patient_id: str = "patient-test-01") -> dict:
+    """Build a request.submitted event matching the real contract (envelope + nested payload)."""
     now = datetime.now(timezone.utc).isoformat()
     return {
         "event_id": str(uuid.uuid4()),
-        "event_type": "request.submitted",
-        "event_version": 1,
-        "occurred_at": now,
         "request_id": str(uuid.uuid4()),
-        "submitted_at": now,
-        "raw_text": raw_text,
+        "event_type": "request.submitted",
+        "version": "1.0",
+        "produced_at": now,
+        "producer": "publish_test",
+        "payload": {
+            "patient_id": patient_id,
+            "text": raw_text,
+        },
     }
-
 
 def main():
     parser = argparse.ArgumentParser(description="Publish a test request.submitted event to Redis.")

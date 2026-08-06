@@ -3,7 +3,13 @@ import logging
 from config import load_settings
 from consumer import TriageConsumer
 from llm_client import ExtractionClient
+import os
+import sys
 
+sys.path.insert(
+    0,
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."),
+)
 
 def main() -> None:
     logging.basicConfig(

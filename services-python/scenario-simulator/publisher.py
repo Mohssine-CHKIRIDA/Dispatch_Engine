@@ -14,7 +14,7 @@ import redis
 
 from shared.events import RequestSubmitted, SubmittedPayload
 
-STREAM_NAME = "request.submitted"
+STREAM_NAME = "requests:submitted"
 
 
 def build_event(patient_id: str, text: str, producer: str = "scenario-simulator") -> RequestSubmitted:
@@ -36,5 +36,5 @@ def publish(client: redis.Redis, event: RequestSubmitted) -> str:
     Returns the Redis Stream entry ID (e.g. '1721300000000-0').
     """
     serialized = event.model_dump_json()
-    entry_id = client.xadd(STREAM_NAME, {"data": serialized})
+    entry_id = client.xadd(STREAM_NAME, {"payload": serialized})   # was: {"data": serialized}
     return entry_id

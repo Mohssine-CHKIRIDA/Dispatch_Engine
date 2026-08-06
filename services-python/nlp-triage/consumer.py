@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import socket
+import sys
 import uuid
+from pathlib import Path
 
 import redis
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from config import Settings
 from llm_client import ExtractionClient
-from models import RequestSubmitted
+from shared.events import RequestSubmitted
 
 log = logging.getLogger("nlp_triage.consumer")
 
@@ -82,7 +87,7 @@ class TriageConsumer:
             submitted = RequestSubmitted.model_validate(payload)
 
             extracted = self._extraction_client.extract(
-                raw_text=submitted.raw_text,
+                raw_text=submitted.payload.text,
                 request_id=submitted.request_id,
             )
 

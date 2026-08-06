@@ -8,29 +8,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-# ---------- incoming: request.submitted ----------
 
-class RequestSubmitted(BaseModel):
-    event_id: uuid.UUID
-    event_type: str
-    event_version: int
-    occurred_at: datetime
-
-    request_id: uuid.UUID
-    submitted_at: datetime
-    raw_text: str
-    requested_specialty: Optional[str] = None
-
-    lat: Optional[float] = None
-    lng: Optional[float] = None
-    location_label: Optional[str] = Field(default=None, alias="locationLabel")
-
-    contact_channel: Optional[str] = None
-    contact_value: Optional[str] = None
-    source: Optional[str] = "web"
-
-    class Config:
-        populate_by_name = True
 
 
 # ---------- outgoing: request.extracted ----------
