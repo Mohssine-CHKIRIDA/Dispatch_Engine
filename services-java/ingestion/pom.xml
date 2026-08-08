@@ -22,6 +22,12 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.pulsaride</groupId>
+            <artifactId>shared-events</artifactId>
+            <version>0.1.0</version>
+        </dependency>
+
         <!-- REST -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

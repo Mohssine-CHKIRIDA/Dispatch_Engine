@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import json
 import logging
 import os
@@ -30,10 +31,6 @@ class TriageConsumer:
         )
         self._consumer_name = f"{socket.gethostname()}-{uuid.uuid4().hex[:8]}"
         self._ensure_group_exists()
-        print(f"[DEBUG] XLEN via python client = {self._redis.xlen(settings.source_stream)}")
-        print(f"[DEBUG] Connecting to redis at {settings.redis_host}:{settings.redis_port}")
-        print(f"[DEBUG] PING -> {self._redis.ping()}")
-        print(f"[DEBUG] source_stream={settings.source_stream!r} group={settings.consumer_group!r}")
 
     def _ensure_group_exists(self) -> None:
         try:
@@ -70,8 +67,6 @@ class TriageConsumer:
             count=10,
             block=5000,
         )
-        print(f"[DEBUG] xreadgroup response = {response!r}")
-
         if not response:
             return
 
@@ -80,12 +75,14 @@ class TriageConsumer:
                 self._handle_message(message_id, fields)
 
     def _handle_message(self, message_id: str, fields: dict) -> None:
-        print(f"[DEBUG] got message_id={message_id} fields={fields!r}")
-
         try:
             payload = json.loads(fields["payload"])
             submitted = RequestSubmitted.model_validate(payload)
 
+            # Contract nests the actual request data under `.payload`
+            # (envelope fields like request_id stay top-level). Was
+            # `submitted.raw_text` / no patient_id before the switch to
+            # shared.events - both now live under `.payload`.
             extracted = self._extraction_client.extract(
                 raw_text=submitted.payload.text,
                 request_id=submitted.request_id,
@@ -95,15 +92,14 @@ class TriageConsumer:
             self._ack(message_id)
 
             log.info(
-                "Processed request_id=%s -> specialty_guess=%s confidence=%.2f",
+                "Processed request_id=%s patient_id=%s -> specialty_guess=%s confidence=%.2f",
                 submitted.request_id,
+                submitted.payload.patient_id,
                 extracted.extraction.specialty_guess,
                 extracted.extraction.confidence,
             )
 
-        except Exception as e:
-            print(f"[DEBUG] EXCEPTION: {type(e).__name__}: {e}")
-
+        except Exception:
             log.exception("Failed to process message_id=%s", message_id)
 
     def _publish(self, extracted) -> None:

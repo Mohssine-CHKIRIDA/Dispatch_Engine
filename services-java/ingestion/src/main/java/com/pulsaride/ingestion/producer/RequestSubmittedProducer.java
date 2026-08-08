@@ -1,7 +1,7 @@
 package com.pulsaride.ingestion.producer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pulsaride.ingestion.event.RequestSubmittedEvent;
+import com.pulsaride.events.RequestSubmitted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,22 +28,25 @@ public class RequestSubmittedProducer {
         this.objectMapper = objectMapper;
     }
 
-    
-    public RecordId publish(RequestSubmittedEvent event) {
+    public RecordId publish(RequestSubmitted event) {
         try {
             String payload = objectMapper.writeValueAsString(event);
 
             MapRecord<String, String, String> record = MapRecord.create(
                     streamKey,
                     Map.of(
-                            "event_type", event.eventType(),
-                            "request_id", event.requestId().toString(),
-                            "payload", payload
-                    )
-            );
+                            // event.getEventType() is declared as Object by
+                            // jsonschema2pojo (a known quirk when a schema
+                            // field uses bare "const" instead of
+                            // "type": "string" + "const") - it's always
+                            // actually a String at runtime here, so
+                            // .toString() is safe.
+                            "event_type", event.getEventType().toString(),
+                            "request_id", event.getRequestId().toString(),
+                            "payload", payload));
 
             RecordId id = redisTemplate.opsForStream().add(record);
-            log.info("Published request.submitted request_id={} stream_id={}", event.requestId(), id);
+            log.info("Published request.submitted request_id={} stream_id={}", event.getRequestId(), id);
             return id;
 
         } catch (Exception e) {
