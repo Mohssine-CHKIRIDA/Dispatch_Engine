@@ -1,27 +1,37 @@
 """
 Calls the Pulsaride LLM Gateway with a forced tool call so the response
-is always a well-formed structured object, never free text we'd have to
-hope is valid JSON. This is the "first LLM" in the pipeline: triage
-extraction only. It does not diagnose, prescribe, or give medical
-advice - it turns the patient's free text into structured routing
-signals that urgency-scoring and matching consume next.
+is always a well-formed structured object. This is the "first LLM" in
+the pipeline: triage extraction only - it does not diagnose, prescribe,
+or give medical advice, it turns the patient's free text into
+structured routing signals that IA2 and IA3 consume next.
 
-This used to call NVIDIA's integrate.api.nvidia.com endpoint directly
-via the `openai` SDK. It now goes through the Gateway's /v1/complete
-instead, so caching, provider fallback (NVIDIA -> Ollama), and any
-future provider swap are centralized in one place rather than
-duplicated in every service that needs an LLM. The Gateway is
-responsible for actually talking to NVIDIA/Kimi (or whichever provider
-is configured) - this client only knows about the Gateway's HTTP API.
+IMPORTANT: the tool schema below asks the LLM only for the fields it
+actually needs to *infer* (symptoms, severity_keywords, duration_hint,
+specialty_hint, location_hint, age_hint, extraction_confidence).
+`raw_text` is NOT requested from the LLM - we already have it locally
+from the caller, so it's set directly rather than asking the model to
+reproduce the patient's exact original text verbatim (which risks
+subtle transcription drift for no benefit).
+
+Also note: the real request.extracted contract has no field to record
+which LLM/model produced the extraction (neither the envelope nor
+ExtractedPayload has one). That provenance only lives in this
+service's logs now, not on the event itself.
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
+from datetime import datetime, timezone
 
 import httpx
 
-from models import Extraction, RequestExtracted
+from shared.events import RequestExtracted, ExtractedPayload
+
+log = logging.getLogger("nlp_triage.llm_client")
+
+PRODUCER_NAME = "nlp-triage"
 
 SYSTEM_PROMPT = (
     "You are a triage information-extraction assistant for a patient "
@@ -29,9 +39,15 @@ SYSTEM_PROMPT = (
     "from a patient's free-text request so it can be routed to an "
     "available healthcare professional. You do not diagnose, you do "
     "not suggest treatment, and you do not give medical advice. If the "
-    "text is ambiguous or vague, reflect that with a lower confidence "
-    "score rather than guessing specifics. Always respond by calling "
-    "the extract_patient_request function."
+    "text is ambiguous or vague, reflect that with a lower "
+    "extraction_confidence rather than guessing specifics. Leave a "
+    "field out entirely if the text genuinely gives no basis for it - "
+    "do not invent details. The one exception is specialty_hint: "
+    "always give your best free-text guess at what kind of "
+    "professional is needed (e.g. 'cardiologue', 'generaliste') based "
+    "on the symptoms, even if uncertain - use 'generaliste' as a "
+    "fallback only if truly nothing points to a specialty. Always "
+    "respond by calling the extract_patient_request function."
 )
 
 EXTRACTION_FUNCTION = {
@@ -44,49 +60,36 @@ EXTRACTION_FUNCTION = {
         ),
         "parameters": {
             "type": "object",
-            "required": [
-                "summary",
-                "symptoms",
-                "red_flags",
-                "specialty_guess",
-                "patient_age_group",
-                "urgency_signals",
-                "language",
-                "confidence",
-            ],
+            "required": ["symptoms", "specialty_hint", "extraction_confidence"],
             "properties": {
-                "summary": {
-                    "type": "string",
-                    "description": "One neutral sentence summarizing the request",
-                },
                 "symptoms": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Symptoms/complaints as described by the patient",
+                    "description": "Discrete symptoms/complaints identified in the text",
                 },
-                "red_flags": {
-                    "type": "array",
+                "severity_keywords": {
+                    "type": ["array", "null"],
                     "items": {"type": "string"},
-                    "description": "Phrases suggesting a potential emergency, if any",
+                    "description": "Phrases signalling severity/urgency, used as input for urgency scoring",
                 },
-                "specialty_guess": {
+                "duration_hint": {
+                    "type": ["string", "null"],
+                    "description": "How long the patient reports the issue has been present, if stated",
+                },
+                "specialty_hint": {
                     "type": "string",
-                    "description": "Best-guess relevant specialty, for routing only",
+                    "description": "Free-text guess at the kind of professional needed, e.g. 'cardiologue' - not an exact tag, matched semantically downstream. Always give your best guess, use 'generaliste' if truly unclear.",
                 },
-                "patient_age_group": {
-                    "type": "string",
-                    "enum": ["infant", "child", "adult", "elderly", "unknown"],
+                "location_hint": {
+                    "type": ["string", "null"],
+                    "description": "Location mentioned in the text, if any",
                 },
-                "urgency_signals": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Textual cues used to gauge urgency",
+                "age_hint": {
+                    "type": ["integer", "null"],
+                    "minimum": 0,
+                    "description": "Patient age if mentioned or inferable from text",
                 },
-                "language": {
-                    "type": "string",
-                    "description": "ISO-ish language code of the raw text, e.g. 'fr', 'en'",
-                },
-                "confidence": {
+                "extraction_confidence": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1,
@@ -103,7 +106,12 @@ class GatewayError(Exception):
 
 
 class ExtractionClient:
-    def __init__(self, gateway_url: str, timeout: float = 30.0):
+    def __init__(self, gateway_url: str, timeout: float = 200.0):
+        # 200s, not 30s: the Gateway's own OllamaProvider can legitimately
+        # take up to ~180s on a cold model load (see llm-gateway's
+        # OLLAMA_TIMEOUT_SECONDS) if it falls back from Groq/NVIDIA. This
+        # client's timeout must exceed the Gateway's worst-case internal
+        # timeout, or we give up before the Gateway was actually done.
         self._gateway_url = gateway_url.rstrip("/")
         self._timeout = timeout
 
@@ -139,10 +147,42 @@ class ExtractionClient:
                 "being forced"
             )
 
-        extraction = Extraction.model_validate(tool_call["arguments"])
+        args = tool_call["arguments"]
 
-        return RequestExtracted.build(
+        symptoms = args.get("symptoms")
+        if not symptoms:
+            log.warning(
+                "Gateway/LLM omitted 'symptoms' despite it being required "
+                "in the tool schema; defaulting to empty list"
+            )
+            symptoms = []
+
+        extraction_confidence = args.get("extraction_confidence")
+        if extraction_confidence is None:
+            log.warning(
+                "Gateway/LLM omitted 'extraction_confidence' despite it "
+                "being required in the tool schema; defaulting to 0.0 "
+                "(lowest confidence, since we have no real signal)"
+            )
+            extraction_confidence = 0.0
+
+        payload = ExtractedPayload(
+            raw_text=raw_text,
+            symptoms=symptoms,
+            severity_keywords=args.get("severity_keywords"),
+            duration_hint=args.get("duration_hint"),
+            specialty_hint=args.get("specialty_hint"),
+            location_hint=args.get("location_hint"),
+            age_hint=args.get("age_hint"),
+            extraction_confidence=extraction_confidence,
+        )
+
+        return RequestExtracted(
+            event_id=uuid.uuid4(),
             request_id=request_id,
-            model=data["model"],
-            extraction=extraction,
+            event_type="request.extracted",
+            version="1.0",
+            produced_at=datetime.now(timezone.utc),
+            producer=PRODUCER_NAME,
+            payload=payload,
         )

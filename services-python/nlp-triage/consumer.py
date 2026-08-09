@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-
 import json
 import logging
-import os
 import socket
-import sys
 import uuid
+
+import os
+import sys
 from pathlib import Path
 
-import redis
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import redis
 
 from config import Settings
 from llm_client import ExtractionClient
@@ -92,11 +91,11 @@ class TriageConsumer:
             self._ack(message_id)
 
             log.info(
-                "Processed request_id=%s patient_id=%s -> specialty_guess=%s confidence=%.2f",
+                "Processed request_id=%s patient_id=%s -> specialty_hint=%s confidence=%.2f",
                 submitted.request_id,
                 submitted.payload.patient_id,
-                extracted.extraction.specialty_guess,
-                extracted.extraction.confidence,
+                extracted.payload.specialty_hint,
+                extracted.payload.extraction_confidence,
             )
 
         except Exception:
