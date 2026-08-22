@@ -91,11 +91,17 @@ class TriageConsumer:
             self._ack(message_id)
 
             log.info(
-                "Processed request_id=%s patient_id=%s -> specialty_hint=%s confidence=%.2f",
+                "Processed request_id=%s patient_id=%s -> specialty_hint=%s confidence=%.2f symptoms=%s severity_keywords=%s duration_hint=%s location_hint=%s age_hint=%s",
                 submitted.request_id,
                 submitted.payload.patient_id,
                 extracted.payload.specialty_hint,
                 extracted.payload.extraction_confidence,
+                extracted.payload.symptoms,
+                extracted.payload.severity_keywords,
+                extracted.payload.duration_hint,
+                extracted.payload.location_hint,
+                extracted.payload.age_hint,
+    
             )
 
         except Exception:

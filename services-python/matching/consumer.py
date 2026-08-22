@@ -7,7 +7,10 @@ import uuid
 from datetime import datetime, timezone
 
 import redis
+import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import db
 from config import Settings
 from embeddings import EmbeddingModel

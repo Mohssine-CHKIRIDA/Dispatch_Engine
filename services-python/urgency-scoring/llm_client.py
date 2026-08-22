@@ -17,7 +17,13 @@ import json
 import uuid
 from datetime import datetime, timezone
 
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import httpx
+
 
 from shared.events import ExtractedPayload, RequestUrgencyScore, UrgencyScorePayload
 

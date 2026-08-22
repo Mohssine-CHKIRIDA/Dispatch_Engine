@@ -6,7 +6,10 @@ import socket
 import uuid
 
 import redis
+import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config import Settings
 from llm_client import UrgencyClient
 from shared.events import RequestExtracted, RequestUrgencyScore

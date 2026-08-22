@@ -27,7 +27,7 @@ def load_settings() -> Settings:
         consumer_group=os.getenv("CONSUMER_GROUP", "matching-group"),
         postgres_dsn=os.getenv(
             "MATCHING_DB_DSN",
-            "postgresql://postgres:postgres@localhost:5433/matching_db",
+            "postgresql://pulsaride:pulsaride@localhost:5433/matching_db",
         ),
         # Multilingual since patient texts are French; 384-dim.
         embedding_model_name=os.getenv(
