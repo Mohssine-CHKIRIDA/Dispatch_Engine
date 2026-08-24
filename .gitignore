@@ -6,7 +6,6 @@
 #*.class
 .gradle/
 build/
-**/target/
 
 # --- Python ---
 __pycache__/
