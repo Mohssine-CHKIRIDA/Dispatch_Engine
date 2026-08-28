@@ -8,14 +8,11 @@ import org.springframework.stereotype.Component;
  * doc (supersedes the earlier 5-term formula from the informal
  * matching-algorithm doc):
  *
- *   score_composite =
- *       sim_cosinus(embedding_cas, embedding_pro) x 0.50   // affinite semantique
- *     + disponibilite(pro)                        x 0.30   // AVAILABLE = 1, sinon 0
- *     + (1 - taux_charge(pro))                     x 0.20   // 0 consultations/h = 1
+ * score_composite =
+ * sim_cosinus(embedding_cas, embedding_pro) x 0.50 // affinite semantique
+ * + disponibilite(pro) x 0.30 // AVAILABLE = 1, sinon 0
+ * + (1 - taux_charge(pro)) x 0.20 // 0 consultations/h = 1
  *
- * acceptanceRate/experienceYears still live on Doctor (pro-registry
- * will likely want them for other purposes, e.g. display or future
- * strategies), they're just not part of THIS formula anymore.
  */
 @Component
 public class CompositeScoreCalculator {

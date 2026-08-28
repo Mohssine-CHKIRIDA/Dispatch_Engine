@@ -3,7 +3,6 @@ package com.pulsaride.dispatch.consumer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pulsaride.dispatch.domain.RequestContext;
-import com.pulsaride.dispatch.embedding.EmbeddingClient;
 import com.pulsaride.dispatch.queue.PriorityQueueService;
 import com.pulsaride.dispatch.registry.RequestContextStore;
 import jakarta.annotation.PostConstruct;
@@ -22,7 +21,7 @@ import org.springframework.data.redis.stream.StreamMessageListenerContainer.Stre
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -41,7 +40,7 @@ public class UrgencyScoredListener {
 
     private static final Logger log = LoggerFactory.getLogger(UrgencyScoredListener.class);
 
-    @Value("${pulsaride.streams.request-urgency-score:requests:urgency_scored}")
+    @Value("${pulsaride.streams.request-urgency-score:requests:urgency_score}")
     private String streamKey;
 
     @Value("${pulsaride.streams.consumer-group:dispatch-core-group}")
@@ -51,27 +50,22 @@ public class UrgencyScoredListener {
     private final ObjectMapper objectMapper;
     private final PriorityQueueService priorityQueueService;
     private final RequestContextStore contextStore;
-    private final EmbeddingClient embeddingClient;
-
     private StreamMessageListenerContainer<String, MapRecord<String, String, String>> container;
 
     public UrgencyScoredListener(StringRedisTemplate redis,
-                                  ObjectMapper objectMapper,
-                                  PriorityQueueService priorityQueueService,
-                                  RequestContextStore contextStore,
-                                  EmbeddingClient embeddingClient,
-                                  RedisConnectionFactory connectionFactory) {
+            ObjectMapper objectMapper,
+            PriorityQueueService priorityQueueService,
+            RequestContextStore contextStore,
+            RedisConnectionFactory connectionFactory) {
         this.redis = redis;
         this.objectMapper = objectMapper;
         this.priorityQueueService = priorityQueueService;
         this.contextStore = contextStore;
-        this.embeddingClient = embeddingClient;
         this.container = StreamMessageListenerContainer.create(
                 connectionFactory,
                 StreamMessageListenerContainerOptions.builder()
                         .pollTimeout(Duration.ofSeconds(2))
-                        .build()
-        );
+                        .build());
     }
 
     @PostConstruct
@@ -83,8 +77,7 @@ public class UrgencyScoredListener {
         container.receive(
                 Consumer.from(consumerGroup, consumerName),
                 StreamOffset.create(streamKey, ReadOffset.lastConsumed()),
-                this::handle
-        );
+                this::handle);
         container.start();
         log.info("UrgencyScoredListener started, group={} consumer={} stream={}",
                 consumerGroup, consumerName, streamKey);
@@ -99,42 +92,45 @@ public class UrgencyScoredListener {
 
     private void ensureGroupExists() {
         try {
-            redis.opsForStream().createGroup(streamKey, consumerGroup);
+            redis.opsForStream().createGroup(streamKey, ReadOffset.from("0"), consumerGroup);
         } catch (Exception e) {
-            // BUSYGROUP: group already exists - fine on restart.
-            if (!String.valueOf(e.getMessage()).contains("BUSYGROUP")) {
+            // BUSYGROUP: group already exists - fine on restart. The actual
+            // "BUSYGROUP" text lives on e.getCause() (Lettuce's
+            // RedisBusyException) - Spring wraps it in RedisSystemException
+            // whose own getMessage() is just "Error in execution", so
+            // checking e.getMessage() alone never matches.
+            Throwable cause = e.getCause();
+            boolean isBusyGroup = String.valueOf(e.getMessage()).contains("BUSYGROUP")
+                    || (cause != null && String.valueOf(cause.getMessage()).contains("BUSYGROUP"));
+
+            if (!isBusyGroup) {
                 throw e;
             }
+            log.info("Consumer group {} already exists on stream {} - continuing", consumerGroup, streamKey);
         }
     }
 
     private void handle(MapRecord<String, String, String> message) {
         try {
             String payloadJson = message.getValue().get("payload");
-            JsonNode payload = objectMapper.readTree(payloadJson);
+            JsonNode event = objectMapper.readTree(payloadJson);
 
-            UUID requestId = UUID.fromString(payload.get("request_id").asText());
-            int urgency = payload.get("urgency").asInt();
-            String summary = payload.get("summary").asText();
-            String specialtyGuess = payload.path("specialty_guess").asText("");
-
-            double[] embedding = null;
-            if (payload.hasNonNull("embedding")) {
-                embedding = objectMapper.convertValue(payload.get("embedding"), double[].class);
-            }
-            if (embedding == null || embedding.length == 0) {
-                embedding = embeddingClient.embed(summary);
+            JsonNode requestIdNode = event.get("request_id");
+            JsonNode payload = event.get("payload");
+            if (requestIdNode == null || payload == null || payload.get("score") == null) {
+                throw new IllegalArgumentException(
+                        "Invalid request.urgency_score envelope: missing request_id or payload.score");
             }
 
-            RequestContext ctx = new RequestContext(
-                    requestId, summary, specialtyGuess, urgency, embedding, Instant.now());
-
-            contextStore.save(ctx);
-            priorityQueueService.enqueue(requestId.toString(), urgency);
+            UUID requestId = UUID.fromString(requestIdNode.asText());
+            int urgency = payload.get("score").asInt();
+            Optional<RequestContext> context = contextStore.saveUrgency(requestId, urgency);
+            context.ifPresent(ctx -> priorityQueueService.enqueue(
+                    ctx.requestId().toString(), ctx.urgency()));
 
             redis.opsForStream().acknowledge(streamKey, consumerGroup, message.getId());
 
-            log.info("Enqueued request_id={} urgency={}", requestId, urgency);
+            log.info("Received urgency score request_id={} score={}", requestId, urgency);
 
         } catch (Exception e) {
             // Deliberately not acked - stays pending for inspection/retry

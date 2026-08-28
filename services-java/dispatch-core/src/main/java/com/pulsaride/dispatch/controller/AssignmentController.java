@@ -5,7 +5,11 @@ import com.pulsaride.dispatch.queue.PriorityQueueService;
 import com.pulsaride.dispatch.registry.DoctorRegistry;
 import com.pulsaride.dispatch.registry.RequestContextStore;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Optional;
 
@@ -25,8 +29,8 @@ public class AssignmentController {
     private final PriorityQueueService priorityQueueService;
 
     public AssignmentController(DoctorRegistry doctorRegistry,
-                                 RequestContextStore contextStore,
-                                 PriorityQueueService priorityQueueService) {
+            RequestContextStore contextStore,
+            PriorityQueueService priorityQueueService) {
         this.doctorRegistry = doctorRegistry;
         this.contextStore = contextStore;
         this.priorityQueueService = priorityQueueService;
@@ -37,6 +41,7 @@ public class AssignmentController {
         // Doctor stays reserved (available=0). A real version would
         // move the request to a CLOSED/IN_PROGRESS state in Postgres
         // here for Mission 3 evaluation purposes.
+
         return ResponseEntity.ok().build();
     }
 

@@ -15,11 +15,10 @@ import java.util.Map;
  * Calls the dedicated embedding-service (Sentence-BERT,
  * paraphrase-multilingual-mpnet-base-v2, 768 dims), per IA 3 in the
  * v2 architecture doc. Used for BOTH:
- *   - embedding_cas: the patient request text, computed fresh at
- *     match time (see MatchingEngine.resolveEmbedding)
- *   - embedding_pro: a doctor's profile text, computed once when the
- *     doctor is seeded/updated (see DoctorController) and cached in
- *     the doctor's Redis hash from then on
+ * - embedding_cas: the patient request text, computed fresh at
+ * match time (see MatchingEngine.resolveEmbedding)
+ * - embedding_pro: a doctor's profile text, computed when the
+ * pro-profile event is received and cached in the doctor's Redis hash
  *
  * Both MUST go through this same client/model - cosine similarity is
  * only meaningful when both vectors come from the same embedding

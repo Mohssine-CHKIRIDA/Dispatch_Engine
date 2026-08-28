@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-//@EnableScheduling // powers MatchingScheduler's periodic queue polling
+@EnableScheduling // powers MatchingScheduler's periodic queue polling
 public class DispatchCoreApplication {
 
     public static void main(String[] args) {

@@ -11,7 +11,8 @@ spring:
 
 pulsaride:
   streams:
-    request-urgency-score: requests:urgency_scored
+    request-urgency-score: requests:urgency_score
+    request-extracted: requests:extracted
     request-proposed: requests:proposed
     consumer-group: dispatch-core-group
 
@@ -20,12 +21,5 @@ pulsaride:
     poll-interval-ms: 1000
 
   embedding:
-    # "hash": deterministic local pseudo-embedding, no external API needed
-    # "sentence-bert": calls the dedicated embedding-service (Sentence-BERT,
-    #                  paraphrase-multilingual-mpnet-base-v2, 768 dims) -
-    #                  this is what the v2 architecture doc specifies for IA 3
-    # "http": calls a generic OpenAI-compatible /embeddings endpoint instead
     provider: sentence-bert
     base-url: http://localhost:8090
-    api-key: ${NVIDIA_API_KEY:}
-    model: nvidia/nv-embedqa-e5-v5

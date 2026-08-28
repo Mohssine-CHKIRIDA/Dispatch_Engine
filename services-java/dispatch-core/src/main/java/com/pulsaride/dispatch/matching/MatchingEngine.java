@@ -16,13 +16,13 @@ import java.util.List;
 
 /**
  * Implements steps 4-9 of the matching algorithm doc, in order:
- *   4. Retrieve available doctors
- *   5. Semantic similarity search
- *   6. Top-K selection
- *   7. Composite score calculation
- *   8. Atomic reservation (falls through to the next candidate on conflict)
- *   9. Notify doctor (publishes request.proposed; notification-gateway
- *      owns the actual WebSocket push)
+ * 4. Retrieve available doctors
+ * 5. Semantic similarity search
+ * 6. Top-K selection
+ * 7. Composite score calculation
+ * 8. Atomic reservation (falls through to the next candidate on conflict)
+ * 9. Notify doctor (publishes request.proposed; notification-gateway
+ * owns the actual WebSocket push)
  *
  * "Everything before the Composite Score is used to reduce the search
  * space. Everything after it is simply choosing the winner." - the doc.
@@ -41,9 +41,9 @@ public class MatchingEngine {
     private int topK;
 
     public MatchingEngine(DoctorRegistry doctorRegistry,
-                           EmbeddingClient embeddingClient,
-                           CompositeScoreCalculator scoreCalculator,
-                           ProposalProducer proposalProducer) {
+            EmbeddingClient embeddingClient,
+            CompositeScoreCalculator scoreCalculator,
+            ProposalProducer proposalProducer) {
         this.doctorRegistry = doctorRegistry;
         this.embeddingClient = embeddingClient;
         this.scoreCalculator = scoreCalculator;
@@ -89,8 +89,7 @@ public class MatchingEngine {
         for (MatchCandidate candidate : scored) {
             boolean reserved = doctorRegistry.tryReserve(candidate.doctor().id(), ctx.requestId().toString());
             if (reserved) {
-                proposalProducer.publish(ctx.requestId(), candidate.doctor().id(),
-                        candidate.similarity(), candidate.compositeScore());
+                proposalProducer.publish(ctx.requestId(), candidate.doctor().id(), candidate.compositeScore());
                 log.info("Matched request_id={} -> doctor_id={} composite_score={}",
                         ctx.requestId(), candidate.doctor().id(), candidate.compositeScore());
                 return new MatchResult.Matched(candidate.doctor().id(), candidate.compositeScore());

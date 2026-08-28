@@ -12,9 +12,9 @@ import java.util.*;
  * Steps 4 and 8 of the matching algorithm doc.
  *
  * Redis layout:
- *   doctors:available          -> Set<String> of doctor ids currently free
- *   doctor:{id}                -> Hash: specialty, load, acceptanceRate,
- *                                  experienceYears, embedding (JSON array)
+ * doctors:available -> Set<String> of doctor ids currently free
+ * doctor:{id} -> Hash: specialty, description, load,
+ * embedding (JSON array)
  *
  * Reservation uses WATCH/MULTI/EXEC (the doc's "Redis Atomic Reservation"):
  * if another request reserves the same doctor between us reading
@@ -36,7 +36,10 @@ public class DoctorRegistry {
         this.objectMapper = objectMapper;
     }
 
-    /** Step 4: "Retrieve available doctors" + "we immediately remove unavailable doctors". */
+    /**
+     * Step 4: "Retrieve available doctors" + "we immediately remove unavailable
+     * doctors".
+     */
     public List<Doctor> getAvailableDoctors() {
         Set<String> ids = redis.opsForSet().members(AVAILABLE_SET_KEY);
         if (ids == null || ids.isEmpty()) {
@@ -61,12 +64,10 @@ public class DoctorRegistry {
             return Optional.of(new Doctor(
                     id,
                     String.valueOf(fields.getOrDefault("specialty", "")),
+                    String.valueOf(fields.getOrDefault("description", "")),
                     "1".equals(String.valueOf(fields.getOrDefault("available", "0"))),
                     Double.parseDouble(String.valueOf(fields.getOrDefault("load", "0"))),
-                    Double.parseDouble(String.valueOf(fields.getOrDefault("acceptanceRate", "0"))),
-                    Integer.parseInt(String.valueOf(fields.getOrDefault("experienceYears", "0"))),
-                    embedding
-            ));
+                    embedding));
         } catch (Exception e) {
             // A malformed doctor record shouldn't crash matching for everyone else.
             return Optional.empty();
@@ -105,7 +106,9 @@ public class DoctorRegistry {
         return execResult != null && !execResult.isEmpty();
     }
 
-    /** Frees a doctor back up - used on refusal, timeout, or completed consultation. */
+    /**
+     * Frees a doctor back up - used on refusal, timeout, or completed consultation.
+     */
     public void release(String doctorId) {
         String doctorKey = DOCTOR_KEY_PREFIX + doctorId;
         redis.opsForHash().put(doctorKey, "available", "1");
@@ -113,27 +116,46 @@ public class DoctorRegistry {
         redis.opsForSet().add(AVAILABLE_SET_KEY, doctorId);
     }
 
-    /** Admin/seeding helper - see DoctorController. */
-    public void upsert(Doctor doctor) {
-        String doctorKey = DOCTOR_KEY_PREFIX + doctor.id();
+    /**
+     * Called from ProProfileUpdatedListener. Updates specialty + the
+     * embedding computed from the profile description. Does NOT touch
+     * available/load or set membership -
+     * those come from a separate event/seeding path.
+     */
+    public void updateProfile(String doctorId, String specialty, String description, double[] embedding) {
+        String doctorKey = DOCTOR_KEY_PREFIX + doctorId;
         try {
             Map<String, String> fields = new HashMap<>();
-            fields.put("specialty", doctor.specialty());
-            fields.put("available", doctor.available() ? "1" : "0");
-            fields.put("load", String.valueOf(doctor.load()));
-            fields.put("acceptanceRate", String.valueOf(doctor.acceptanceRate()));
-            fields.put("experienceYears", String.valueOf(doctor.experienceYears()));
-            fields.put("embedding", objectMapper.writeValueAsString(doctor.embedding()));
-
+            fields.put("specialty", specialty);
+            fields.put("description", description);
+            fields.put("embedding", objectMapper.writeValueAsString(embedding));
             redis.opsForHash().putAll(doctorKey, fields);
-
-            if (doctor.available()) {
-                redis.opsForSet().add(AVAILABLE_SET_KEY, doctor.id());
-            } else {
-                redis.opsForSet().remove(AVAILABLE_SET_KEY, doctor.id());
-            }
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to upsert doctor " + doctor.id(), e);
+            throw new IllegalStateException("Failed to update embedding for doctor " + doctorId, e);
+        }
+    }
+
+    /**
+     * Called from ProAvailabilityChangedListener. Updates available +
+     * load, and keeps the doctors:available set in sync - the same set
+     * getAvailableDoctors() reads from. currentLoad may be null (the
+     * contract allows it); when null we leave the "load" field
+     * untouched rather than overwriting it with a bogus 0.
+     */
+    public void updateAvailability(String doctorId, boolean available, Integer currentLoad) {
+        String doctorKey = DOCTOR_KEY_PREFIX + doctorId;
+
+        Map<String, String> fields = new HashMap<>();
+        fields.put("available", available ? "1" : "0");
+        if (currentLoad != null) {
+            fields.put("load", String.valueOf(currentLoad));
+        }
+        redis.opsForHash().putAll(doctorKey, fields);
+
+        if (available) {
+            redis.opsForSet().add(AVAILABLE_SET_KEY, doctorId);
+        } else {
+            redis.opsForSet().remove(AVAILABLE_SET_KEY, doctorId);
         }
     }
 }

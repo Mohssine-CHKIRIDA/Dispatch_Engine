@@ -55,7 +55,7 @@ public class MatchingScheduler {
 
         switch (result) {
             case MatchResult.Matched matched -> log.info(
-                    "request_id={} matched to doctor_id={}", requestId, matched.doctorId());
+                    "request_id={} matched to doctor_id={} ", requestId, matched.doctorId());
 
             case MatchResult.NoDoctorsAvailable ignored -> {
                 log.info("request_id={} requeued - no doctors available right now", requestId);

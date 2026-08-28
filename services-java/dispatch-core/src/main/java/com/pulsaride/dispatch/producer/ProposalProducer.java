@@ -35,18 +35,19 @@ public class ProposalProducer {
         this.objectMapper = objectMapper;
     }
 
-    public void publish(UUID requestId, String doctorId, double similarity, double compositeScore) {
+    public void publish(UUID requestId, String doctorId, double compositeScore) {
         try {
             Map<String, Object> event = Map.of(
                     "event_id", UUID.randomUUID().toString(),
-                    "event_type", "request.proposed",
-                    "event_version", 1,
-                    "occurred_at", Instant.now().toString(),
                     "request_id", requestId.toString(),
-                    "doctor_id", doctorId,
-                    "similarity", similarity,
-                    "composite_score", compositeScore
-            );
+                    "event_type", "request.proposed",
+                    "version", "1.0",
+                    "produced_at", Instant.now().toString(),
+                    "producer", "dispatch-core",
+                    "payload", Map.of(
+                            "pro_id", doctorId,
+                            "strategy", "S3",
+                            "match_score", compositeScore));
 
             String payload = objectMapper.writeValueAsString(event);
 
@@ -55,10 +56,8 @@ public class ProposalProducer {
                     Map.of(
                             "event_type", "request.proposed",
                             "request_id", requestId.toString(),
-                            "doctor_id", doctorId,
-                            "payload", payload
-                    )
-            );
+                            "pro_id", doctorId,
+                            "payload", payload));
 
             redis.opsForStream().add(record);
 

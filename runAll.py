@@ -32,9 +32,10 @@ from pathlib import Path
 # ---------------------------------------------------------------------
 SERVICES = [
     ("llm-gateway", "services-python/llm-gateway", [sys.executable, "-m", "uvicorn", "app:app", "--port", "8000"]),
+    ("embedding-service (IA3)", "services-python/embedding-service", [sys.executable, "-m", "uvicorn", "main:app", "--port", "8090"]),
     ("nlp-triage (IA1)", "services-python/nlp-triage", [sys.executable, "main.py"]),
     ("urgency-scoring (IA2)", "services-python/urgency-scoring", [sys.executable, "main.py"]),
-    ("matching (IA3)", "services-python/matching", [sys.executable, "main.py"]),
+    #("matching (IA3)", "services-python/matching", [sys.executable, "main.py"]),
 ]
 
 # Seconds to wait after starting each service before starting the next.
