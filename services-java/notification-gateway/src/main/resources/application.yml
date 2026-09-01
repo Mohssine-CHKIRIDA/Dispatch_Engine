@@ -1,0 +1,18 @@
+server:
+  port: 9093
+
+spring:
+  application:
+    name: notification-gateway
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+pulsaride:
+  streams:
+    request-proposed: requests:proposed
+    consumer-group: notification-gateway-group
+
+  dispatch-core:
+    base-url: http://localhost:9092
