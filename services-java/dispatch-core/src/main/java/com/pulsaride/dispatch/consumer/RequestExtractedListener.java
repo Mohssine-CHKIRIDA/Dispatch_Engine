@@ -131,7 +131,8 @@ public class RequestExtractedListener {
                     : embeddingClient.embed(textToEmbed);
 
             String specialtyHint = payload.path("specialty_hint").asText(null);
-            Optional<RequestContext> context = contextStore.saveExtracted(requestId, embedding, specialtyHint);
+            Optional<RequestContext> context = contextStore.saveExtracted(requestId, embedding, textToEmbed,
+                    specialtyHint);
             context.ifPresent(ctx -> priorityQueueService.enqueue(
                     ctx.requestId().toString(), ctx.urgency()));
 

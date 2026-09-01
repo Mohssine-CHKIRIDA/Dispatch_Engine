@@ -53,13 +53,15 @@ public class RequestContextStore {
         }
     }
 
-    public Optional<RequestContext> saveExtracted(UUID requestId, double[] embedding, String specialtyGuess) {
+    public Optional<RequestContext> saveExtracted(UUID requestId, double[] embedding, String summary,
+            String specialtyGuess) {
         String key = PENDING_KEY_PREFIX + requestId;
         try {
             redis.opsForHash().put(key, "embedding", objectMapper.writeValueAsString(embedding));
         } catch (Exception e) {
             throw new IllegalStateException("Failed to serialize embedding for " + requestId, e);
         }
+        redis.opsForHash().put(key, "summary", summary == null ? "" : summary);
         redis.opsForHash().put(key, "specialtyGuess", specialtyGuess == null ? "" : specialtyGuess);
         redis.expire(key, TTL);
         return assemble(requestId, key);

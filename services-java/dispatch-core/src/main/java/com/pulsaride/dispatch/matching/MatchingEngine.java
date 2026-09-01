@@ -82,16 +82,22 @@ public class MatchingEngine {
                 .sorted(Comparator.comparingDouble(MatchCandidate::compositeScore).reversed())
                 .toList();
 
-        log.debug("request_id={} scored candidates={}", ctx.requestId(), scored);
+        log.info("request_id={} patient_summary=\"{}\" candidates={}",
+                ctx.requestId(), ctx.summary(),
+                scored.stream()
+                        .map(c -> String.format("[doctor_id=%s specialty=%s sim=%.3f composite=%.3f]",
+                                c.doctor().id(), c.doctor().specialty(), c.similarity(), c.compositeScore()))
+                        .toList());
 
-        // Steps 8-9: try candidates best-first, atomically reserving;
-        // on a lost race (WATCH conflict), fall through to the next one.
         for (MatchCandidate candidate : scored) {
             boolean reserved = doctorRegistry.tryReserve(candidate.doctor().id(), ctx.requestId().toString());
             if (reserved) {
                 proposalProducer.publish(ctx.requestId(), candidate.doctor().id(), candidate.compositeScore());
-                log.info("Matched request_id={} -> doctor_id={} composite_score={}",
-                        ctx.requestId(), candidate.doctor().id(), candidate.compositeScore());
+                log.info(
+                        "Matched request_id={} patient_summary=\"{}\" -> doctor_id={} specialty=\"{}\" description=\"{}\" similarity={} composite_score={}",
+                        ctx.requestId(), ctx.summary(),
+                        candidate.doctor().id(), candidate.doctor().specialty(), candidate.doctor().description(),
+                        candidate.similarity(), candidate.compositeScore());
                 return new MatchResult.Matched(candidate.doctor().id(), candidate.compositeScore());
             }
             log.info("Lost reservation race for doctor_id={} on request_id={}, trying next candidate",
