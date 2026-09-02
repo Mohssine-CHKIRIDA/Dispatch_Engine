@@ -48,9 +48,9 @@ public class ProposalListener {
     private StreamMessageListenerContainer<String, MapRecord<String, String, String>> container;
 
     public ProposalListener(StringRedisTemplate redis,
-                             ObjectMapper objectMapper,
-                             DoctorSessionRegistry sessionRegistry,
-                             RedisConnectionFactory connectionFactory) {
+            ObjectMapper objectMapper,
+            DoctorSessionRegistry sessionRegistry,
+            RedisConnectionFactory connectionFactory) {
         this.redis = redis;
         this.objectMapper = objectMapper;
         this.sessionRegistry = sessionRegistry;
@@ -58,8 +58,7 @@ public class ProposalListener {
                 connectionFactory,
                 StreamMessageListenerContainerOptions.builder()
                         .pollTimeout(Duration.ofSeconds(2))
-                        .build()
-        );
+                        .build());
     }
 
     @PostConstruct
@@ -71,8 +70,7 @@ public class ProposalListener {
         container.receive(
                 Consumer.from(consumerGroup, consumerName),
                 StreamOffset.create(streamKey, ReadOffset.lastConsumed()),
-                this::handle
-        );
+                this::handle);
         container.start();
         log.info("ProposalListener started, group={} consumer={} stream={}",
                 consumerGroup, consumerName, streamKey);
@@ -89,20 +87,69 @@ public class ProposalListener {
         try {
             redis.opsForStream().createGroup(streamKey, consumerGroup);
         } catch (Exception e) {
-            if (!String.valueOf(e.getMessage()).contains("BUSYGROUP")) {
+            // Check the entire cause chain for BUSYGROUP (group already exists)
+            if (!isBusyGroupError(e)) {
                 throw e;
             }
+            log.debug("Consumer group {} already exists", consumerGroup);
         }
+    }
+
+    private boolean isBusyGroupError(Exception e) {
+        Throwable cause = e;
+        while (cause != null) {
+            if (cause.getMessage() != null && cause.getMessage().contains("BUSYGROUP")) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     private void handle(MapRecord<String, String, String> message) {
         try {
-            JsonNode payload = objectMapper.readTree(message.getValue().get("payload"));
+            // Messages arrive in event envelope format: {event_type, producer, payload,
+            // request_id, version, ...}
+            // The actual proposal data is in the nested "payload" field
+            JsonNode envelope = objectMapper.readTree(message.getValue().get("payload"));
 
-            String requestId = payload.get("request_id").asText();
-            String doctorId = payload.get("doctor_id").asText();
-            Double similarity = payload.has("similarity") ? payload.get("similarity").asDouble() : null;
-            Double compositeScore = payload.get("composite_score").asDouble();
+            // Extract request_id from root level of envelope
+            if (!envelope.has("request_id") || envelope.get("request_id").isNull()) {
+                log.error("Missing required field 'request_id' in envelope message_id={}, envelope={}",
+                        message.getId(), envelope);
+                return;
+            }
+            String requestId = envelope.get("request_id").asText();
+
+            // Parse the nested payload object
+            if (!envelope.has("payload") || envelope.get("payload").isNull()) {
+                log.error("Missing nested 'payload' in envelope for request_id={}, message_id={}",
+                        requestId, message.getId());
+                return;
+            }
+            JsonNode innerPayload = envelope.get("payload");
+
+            // Extract pro_id (doctor ID) and match_score (composite score) from inner
+            // payload
+            if (!innerPayload.has("pro_id") || innerPayload.get("pro_id").isNull()) {
+                log.error("Missing required field 'pro_id' in payload for request_id={}, message_id={}, payload={}",
+                        requestId, message.getId(), innerPayload);
+                return;
+            }
+            String doctorId = innerPayload.get("pro_id").asText();
+
+            if (!innerPayload.has("match_score") || innerPayload.get("match_score").isNull()) {
+                log.error(
+                        "Missing required field 'match_score' in payload for request_id={}, message_id={}, payload={}",
+                        requestId, message.getId(), innerPayload);
+                return;
+            }
+            Double compositeScore = innerPayload.get("match_score").asDouble();
+
+            // similarity is optional
+            Double similarity = innerPayload.has("similarity") && !innerPayload.get("similarity").isNull()
+                    ? innerPayload.get("similarity").asDouble()
+                    : null;
 
             ProposalPushMessage pushMessage = ProposalPushMessage.of(requestId, doctorId, similarity, compositeScore);
 

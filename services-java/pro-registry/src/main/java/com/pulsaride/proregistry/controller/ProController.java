@@ -31,8 +31,7 @@ public class ProController {
     public ProController(
             ProProfileRepository repository,
             ProProfileUpdatedProducer profileUpdatedProducer,
-            ProAvailabilityChangedProducer availabilityChangedProducer
-    ) {
+            ProAvailabilityChangedProducer availabilityChangedProducer) {
         this.repository = repository;
         this.profileUpdatedProducer = profileUpdatedProducer;
         this.availabilityChangedProducer = availabilityChangedProducer;
@@ -60,8 +59,7 @@ public class ProController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ProProfileResponse> updateProfile(
-            @PathVariable UUID id, @Valid @RequestBody CreateOrUpdateProDto dto
-    ) {
+            @PathVariable UUID id, @Valid @RequestBody CreateOrUpdateProDto dto) {
         ProProfile profile = findOrThrow(id);
         profile.updateProfile(dto.specialty(), dto.description());
         repository.save(profile);
@@ -73,8 +71,7 @@ public class ProController {
 
     @PatchMapping("/{id}/availability")
     public ResponseEntity<ProProfileResponse> updateAvailability(
-            @PathVariable UUID id, @Valid @RequestBody UpdateAvailabilityDto dto
-    ) {
+            @PathVariable UUID id, @Valid @RequestBody UpdateAvailabilityDto dto) {
         ProProfile profile = findOrThrow(id);
         profile.updateAvailability(dto.available(), dto.currentLoad());
         repository.save(profile);
@@ -103,8 +100,7 @@ public class ProController {
 
     private void publishProfileUpdated(ProProfile profile) {
         ProfileUpdatedPayload payload = new ProfileUpdatedPayload(
-                profile.getId().toString(), profile.getSpecialty(), profile.getDescription()
-        );
+                profile.getId().toString(), profile.getSpecialty(), profile.getDescription());
         ProProfileUpdated event = new ProProfileUpdated(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
@@ -112,15 +108,13 @@ public class ProController {
                 "1.0",
                 OffsetDateTime.now(),
                 "pro-registry",
-                payload
-        );
+                payload);
         profileUpdatedProducer.publish(event);
     }
 
     private void publishAvailabilityChanged(ProProfile profile) {
         AvailabilityChangedPayload payload = new AvailabilityChangedPayload(
-                profile.getId().toString(), profile.isAvailable(), profile.getCurrentLoad()
-        );
+                profile.getId().toString(), profile.isAvailable(), profile.getCurrentLoad());
         ProAvailabilityChanged event = new ProAvailabilityChanged(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
@@ -128,8 +122,7 @@ public class ProController {
                 "1.0",
                 OffsetDateTime.now(),
                 "pro-registry",
-                payload
-        );
+                payload);
         availabilityChangedProducer.publish(event);
     }
 }
