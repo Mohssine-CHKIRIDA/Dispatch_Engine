@@ -1,6 +1,7 @@
 package com.pulsaride.dispatch.controller;
 
 import com.pulsaride.dispatch.domain.RequestContext;
+import com.pulsaride.dispatch.producer.AssignmentEventProducer;
 import com.pulsaride.dispatch.queue.PriorityQueueService;
 import com.pulsaride.dispatch.registry.DoctorRegistry;
 import com.pulsaride.dispatch.registry.RequestContextStore;
@@ -27,34 +28,43 @@ public class AssignmentController {
     private final DoctorRegistry doctorRegistry;
     private final RequestContextStore contextStore;
     private final PriorityQueueService priorityQueueService;
+    private final AssignmentEventProducer eventProducer;
 
     public AssignmentController(DoctorRegistry doctorRegistry,
             RequestContextStore contextStore,
-            PriorityQueueService priorityQueueService) {
+            PriorityQueueService priorityQueueService,
+            AssignmentEventProducer eventProducer) {
         this.doctorRegistry = doctorRegistry;
         this.contextStore = contextStore;
         this.priorityQueueService = priorityQueueService;
+        this.eventProducer = eventProducer;
     }
 
     @PostMapping("/{requestId}/accept")
     public ResponseEntity<Void> accept(@PathVariable String requestId, @RequestParam String doctorId) {
-        // Doctor stays reserved (available=0). A real version would
-        // move the request to a CLOSED/IN_PROGRESS state in Postgres
-        // here for Mission 3 evaluation purposes.
-
+        doctorRegistry.confirmReservation(doctorId);
+        eventProducer.publishAccepted(requestId, doctorId);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{requestId}/refuse")
     public ResponseEntity<Void> refuse(@PathVariable String requestId, @RequestParam String doctorId) {
-        // "No -> Next Candidate": free the doctor, then requeue the
-        // request so MatchingScheduler runs the pipeline again - this
-        // time that doctor won't be in the available set.
         doctorRegistry.release(doctorId);
+        eventProducer.publishRefused(requestId, doctorId);
 
         Optional<RequestContext> ctxOpt = contextStore.get(requestId);
         ctxOpt.ifPresent(ctx -> priorityQueueService.requeue(requestId, ctx.urgency()));
 
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{requestId}/close")
+    public ResponseEntity<Void> close(@PathVariable String requestId, @RequestParam String doctorId) {
+        // Consultation finished (or was cancelled post-accept) - free the
+        // doctor back into the available pool. Unlike accept/refuse, this
+        // does NOT requeue the request - it's terminal, not a retry.
+        doctorRegistry.release(doctorId);
+        eventProducer.publishClosed(requestId, doctorId);
         return ResponseEntity.ok().build();
     }
 }

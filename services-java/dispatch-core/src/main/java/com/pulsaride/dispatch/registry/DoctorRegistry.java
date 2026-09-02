@@ -74,11 +74,9 @@ public class DoctorRegistry {
         }
     }
 
-    /**
-     * Step 8: atomic reservation. Returns true if this call won the race
-     * and the doctor is now reserved for requestId; false if someone
-     * else got there first (or the doctor was no longer available).
-     */
+    // New field alongside AVAILABLE_SET_KEY
+    private static final String RESERVED_SET_KEY = "doctors:reserved";
+
     public boolean tryReserve(String doctorId, String requestId) {
         String doctorKey = DOCTOR_KEY_PREFIX + doctorId;
 
@@ -92,14 +90,16 @@ public class DoctorRegistry {
 
                 if (!stillAvailable) {
                     operations.unwatch();
-                    return null; // signal "not reserved" without opening a transaction
+                    return null;
                 }
 
                 operations.multi();
                 operations.opsForHash().put(doctorKey, "available", "0");
                 operations.opsForHash().put(doctorKey, "reservedFor", requestId);
+                operations.opsForHash().put(doctorKey, "reservedAt", String.valueOf(System.currentTimeMillis()));
                 operations.opsForSet().remove(AVAILABLE_SET_KEY, doctorId);
-                return operations.exec(); // null if WATCH detected a concurrent change
+                operations.opsForSet().add(RESERVED_SET_KEY, doctorId);
+                return operations.exec();
             }
         });
 
@@ -107,13 +107,55 @@ public class DoctorRegistry {
     }
 
     /**
-     * Frees a doctor back up - used on refusal, timeout, or completed consultation.
+     * Doctor refused, or the reservation timed out with no response: free them
+     * entirely.
      */
     public void release(String doctorId) {
         String doctorKey = DOCTOR_KEY_PREFIX + doctorId;
         redis.opsForHash().put(doctorKey, "available", "1");
-        redis.opsForHash().delete(doctorKey, "reservedFor");
+        redis.opsForHash().delete(doctorKey, "reservedFor", "reservedAt");
+        redis.opsForSet().remove(RESERVED_SET_KEY, doctorId);
         redis.opsForSet().add(AVAILABLE_SET_KEY, doctorId);
+    }
+
+    /**
+     * Doctor accepted: stop the timeout sweep from firing on them, but
+     * leave them unavailable (available=0, reservedFor kept) - they're
+     * now genuinely busy with this patient. No mechanism yet frees them
+     * back up when the consultation ends (needs a future request.closed
+     * handler) - known gap, not built.
+     */
+    public void confirmReservation(String doctorId) {
+        String doctorKey = DOCTOR_KEY_PREFIX + doctorId;
+        redis.opsForHash().delete(doctorKey, "reservedAt");
+        redis.opsForSet().remove(RESERVED_SET_KEY, doctorId);
+    }
+
+    /** Doctors whose reservation has outlived the timeout with no accept/refuse. */
+    public List<ReservedDoctor> getExpiredReservations(long timeoutMillis) {
+        Set<String> reservedIds = redis.opsForSet().members(RESERVED_SET_KEY);
+        if (reservedIds == null || reservedIds.isEmpty()) {
+            return List.of();
+        }
+
+        long now = System.currentTimeMillis();
+        List<ReservedDoctor> expired = new ArrayList<>();
+        for (String id : reservedIds) {
+            String doctorKey = DOCTOR_KEY_PREFIX + id;
+            Object reservedAtRaw = redis.opsForHash().get(doctorKey, "reservedAt");
+            Object requestIdRaw = redis.opsForHash().get(doctorKey, "reservedFor");
+            if (reservedAtRaw == null || requestIdRaw == null) {
+                continue; // already confirmed or inconsistent state - skip
+            }
+            long reservedAt = Long.parseLong(String.valueOf(reservedAtRaw));
+            if (now - reservedAt > timeoutMillis) {
+                expired.add(new ReservedDoctor(id, String.valueOf(requestIdRaw)));
+            }
+        }
+        return expired;
+    }
+
+    public record ReservedDoctor(String doctorId, String requestId) {
     }
 
     /**

@@ -85,7 +85,8 @@ public class ProposalListener {
 
     private void ensureGroupExists() {
         try {
-            redis.opsForStream().createGroup(streamKey, consumerGroup);
+            redis.opsForStream().createGroup(streamKey, ReadOffset.from("0"), consumerGroup);
+
         } catch (Exception e) {
             // Check the entire cause chain for BUSYGROUP (group already exists)
             if (!isBusyGroupError(e)) {

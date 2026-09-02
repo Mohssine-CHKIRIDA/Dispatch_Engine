@@ -15,10 +15,15 @@ pulsaride:
     request-extracted: requests:extracted
     request-proposed: requests:proposed
     consumer-group: dispatch-core-group
+    request-accepted: requests:accepted
+    request-refused: requests:refused
+    request-closed: requests:closed
 
   matching:
     top-k: 3
     poll-interval-ms: 1000
+    reservation-timeout-seconds: 30
+    timeout-sweep-interval-ms: 5000
 
   embedding:
     provider: sentence-bert
