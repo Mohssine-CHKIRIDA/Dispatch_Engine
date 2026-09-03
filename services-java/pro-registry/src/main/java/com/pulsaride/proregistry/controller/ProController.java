@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -49,6 +50,14 @@ public class ProController {
         publishAvailabilityChanged(profile);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(ProProfileResponse.from(profile));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ProProfileResponse>> listPros() {
+        List<ProProfileResponse> profiles = repository.findAll().stream()
+                .map(ProProfileResponse::from)
+                .toList();
+        return ResponseEntity.ok(profiles);
     }
 
     @GetMapping("/{id}")

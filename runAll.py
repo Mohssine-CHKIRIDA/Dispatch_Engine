@@ -35,6 +35,7 @@ SERVICES = [
     ("embedding-service (IA3)", "services-python/embedding-service", [sys.executable, "-m", "uvicorn", "main:app", "--port", "8090"]),
     ("nlp-triage (IA1)", "services-python/nlp-triage", [sys.executable, "main.py"]),
     ("urgency-scoring (IA2)", "services-python/urgency-scoring", [sys.executable, "main.py"]),
+    ("evaluation (IA4)", "services-python/evaluation", [sys.executable, "-m", "uvicorn", "main:app", "--port", "8091"]),
     #("matching (IA3)", "services-python/matching", [sys.executable, "main.py"]),
 ]
 

@@ -80,6 +80,7 @@ python -m pip install -r services-python/embedding-service/requirements.txt
 python -m pip install -r services-python/nlp-triage/requirements.txt
 python -m pip install -r services-python/urgency-scoring/requirements.txt
 python -m pip install -r services-python/scenario-simulator/requirements.txt
+python -m pip install fastapi uvicorn redis psycopg2-binary
 ```
 
 The embedding service downloads its Sentence Transformers model on first startup, so its first launch may take a while.
@@ -102,6 +103,26 @@ Invoke-RestMethod http://localhost:8090/health
 ```
 
 The gateway's `providers_configured` response shows which LLM providers are available.
+
+## Run the Evaluation Service
+
+Start the infrastructure first, then run the evaluation service from its own directory. Its default PostgreSQL DSN expects `postgres/postgres`, which does not match this repository's Compose defaults, so set the DSN explicitly in PowerShell:
+
+```powershell
+Set-Location services-python/evaluation
+$env:EVALUATION_DB_DSN = "postgresql://pulsaride:pulsaride@localhost:5433/evaluation_db"
+python -m uvicorn main:app --host 0.0.0.0 --port 8091
+```
+
+The service consumes lifecycle events from Redis Streams and exposes:
+
+```powershell
+Invoke-RestMethod http://localhost:8091/health
+Invoke-RestMethod http://localhost:8091/kpis
+Invoke-RestMethod "http://localhost:8091/requests/recent?limit=50"
+```
+
+The evaluation service creates the `request_lifecycle` and `proposals` tables automatically if they do not exist. The same schema is also included in `infra/postgres/init/evaluation_db.sql` for fresh PostgreSQL volumes.
 
 ## Publish Test Requests
 

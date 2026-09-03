@@ -19,6 +19,7 @@ class EvaluationConsumer:
     def __init__(self):
         self.redis = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
         self.conn = db.get_conn()
+        db.ensure_schema(self.conn)
         self._ensure_groups()
 
     def _ensure_groups(self):

@@ -1,3 +1,7 @@
+
+import psycopg2.extras
+
+
 def compute_kpis(conn):
     with conn.cursor() as cur:
         # TTFA: time from submission to first proposal, per request
@@ -52,3 +56,48 @@ def compute_kpis(conn):
         "avg_proposals_per_request": avg_proposals_per_request,
         "raw_outcome_counts": outcome_counts,
     }
+
+
+def get_recent_requests(conn, limit=50):
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            """
+            SELECT
+                rl.request_id,
+                rl.patient_id,
+                rl.submitted_at,
+                rl.extracted_at,
+                rl.urgency_score,
+                rl.urgency_scored_at,
+                rl.closed_at,
+                p.doctor_id,
+                p.match_score,
+                COALESCE(p.outcome, 'no_proposal_yet') AS outcome,
+                COUNT(p_all.id) AS proposal_count,
+                MIN(p_all.proposed_at) AS first_proposed_at
+            FROM request_lifecycle rl
+            LEFT JOIN LATERAL (
+                SELECT doctor_id, match_score, outcome, proposed_at
+                FROM proposals
+                WHERE request_id = rl.request_id
+                ORDER BY proposed_at DESC, id DESC
+                LIMIT 1
+            ) p ON TRUE
+            LEFT JOIN proposals p_all ON p_all.request_id = rl.request_id
+            GROUP BY
+                rl.request_id,
+                rl.patient_id,
+                rl.submitted_at,
+                rl.extracted_at,
+                rl.urgency_score,
+                rl.urgency_scored_at,
+                rl.closed_at,
+                p.doctor_id,
+                p.match_score,
+                p.outcome
+            ORDER BY rl.submitted_at DESC NULLS LAST
+            LIMIT %s
+            """,
+            (max(1, min(limit, 500)),),
+        )
+        return cur.fetchall()

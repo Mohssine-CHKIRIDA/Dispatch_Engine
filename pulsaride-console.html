@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pulsaride — Dispatch Console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #EFEDE6;
+    --panel: #FBFAF7;
+    --ink: #20242B;
+    --ink-soft: #565C66;
+    --line: #D8D3C6;
+    --accent: #1F4E66;
+    --accent-soft: #E4ECF0;
+    --t3: #B23B3B; --t3-bg: #F6E9E9;
+    --t2: #BD7A2C; --t2-bg: #F7EEE1;
+    --t1: #3E6E52; --t1-bg: #E9F1EC;
+    --t0: #7A7A72; --t0-bg: #EEEDEA;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, sans-serif;
+    display: grid; grid-template-columns: 180px 1fr; min-height: 100vh;
+  }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  nav {
+    border-right: 1px solid var(--line); padding: 20px 0; background: var(--panel);
+  }
+  nav .brand { font-weight: 600; font-size: 14px; padding: 0 18px 18px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  nav .brand span { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 400; margin-top: 2px; }
+  nav button {
+    display: block; width: 100%; text-align: left; padding: 10px 18px;
+    background: none; border: none; border-left: 3px solid transparent;
+    font-family: inherit; font-size: 13.5px; color: var(--ink-soft); cursor: pointer;
+  }
+  nav button.active { border-left-color: var(--accent); color: var(--ink); background: var(--accent-soft); font-weight: 500; }
+  nav button:hover { color: var(--ink); }
+  main { padding: 28px 36px; max-width: 900px; }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  .sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 22px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .config {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    padding: 12px 14px; margin-bottom: 22px;
+  }
+  .config label { display: block; font-size: 10.5px; color: var(--ink-soft); margin-bottom: 3px; }
+  .config input {
+    width: 100%; font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    padding: 5px 7px; border: 1px solid var(--line); border-radius: 3px; background: #fff;
+  }
+  textarea, input[type=text] {
+    font-family: inherit; font-size: 13.5px; padding: 9px 11px;
+    border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink);
+    width: 100%;
+  }
+  textarea { min-height: 90px; resize: vertical; }
+  .btn {
+    font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 16px;
+    background: var(--accent); color: #fff; border: none; border-radius: 4px; cursor: pointer;
+  }
+  .btn:hover { opacity: .9; }
+  .btn.ghost { background: none; border: 1px solid var(--line); color: var(--ink); }
+  .btn.small { padding: 4px 10px; font-size: 12px; }
+  .row { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 4px; }
+  .msg { font-size: 12.5px; margin-top: 10px; padding: 8px 10px; border-radius: 4px; }
+  .msg.ok { background: var(--t1-bg); color: var(--t1); }
+  .msg.err { background: var(--t3-bg); color: var(--t3); }
+
+  .board-row {
+    display: grid; grid-template-columns: 18px 100px 1fr 130px 90px 150px;
+    align-items: center; gap: 12px; padding: 10px 12px;
+    border-bottom: 1px solid var(--line); font-size: 13px;
+  }
+  .board-row.head { color: var(--ink-soft); font-size: 11px; padding-bottom: 6px; }
+  .urgency-bar { width: 6px; height: 26px; border-radius: 2px; }
+  .u3 { background: var(--t3); } .u2 { background: var(--t2); } .u1 { background: var(--t1); } .u0 { background: var(--t0); }
+  .badge {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500;
+  }
+  .badge.pending { background: var(--t2-bg); color: var(--t2); }
+  .badge.accepted { background: var(--t1-bg); color: var(--t1); }
+  .badge.refused { background: var(--t3-bg); color: var(--t3); }
+  .badge.timeout { background: var(--t3-bg); color: var(--t3); }
+  .badge.no_proposal_yet { background: var(--t0-bg); color: var(--t0); }
+  .actions button { margin-right: 4px; }
+
+  .doctor-row {
+    display: grid; grid-template-columns: 1fr 140px 90px 110px;
+    align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13px;
+  }
+  .doctor-row.head { color: var(--ink-soft); font-size: 11px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .dot.on { background: var(--t1); } .dot.off { background: var(--t0); }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .kpi-card { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; }
+  .kpi-card .val { font-family: "IBM Plex Mono", monospace; font-size: 24px; font-weight: 500; }
+  .kpi-card .label { font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12.5px; }
+  .bar-track { flex: 1; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; }
+  .empty { color: var(--ink-soft); font-size: 13px; padding: 20px 0; text-align: center; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">Pulsaride<span>Dispatch console</span></div>
+  <button class="nav-btn active" data-panel="submit">Submit request</button>
+  <button class="nav-btn" data-panel="doctors">Doctors</button>
+  <button class="nav-btn" data-panel="board">Live board</button>
+  <button class="nav-btn" data-panel="kpis">KPIs</button>
+</nav>
+
+<main>
+
+  <div class="config">
+    <div><label>Ingestion</label><input id="cfg-ingestion" type="text" value="http://localhost:8080"></div>
+    <div><label>Pro Registry</label><input id="cfg-pros" type="text" value="http://localhost:8082"></div>
+    <div><label>Dispatch Core</label><input id="cfg-dispatch" type="text" value="http://localhost:9092"></div>
+    <div><label>Evaluation</label><input id="cfg-eval" type="text" value="http://localhost:8091"></div>
+  </div>
+
+  <!-- SUBMIT -->
+  <section class="panel active" id="panel-submit">
+    <h1>Submit a patient request</h1>
+    <p class="sub">Sends free-text patient description to Ingestion, exactly like the scenario simulator does.</p>
+    <div class="field">
+      <label>Patient text</label>
+      <textarea id="submit-text" placeholder="e.g. I have a fever for 3 days and my 5-year-old son has difficulty swallowing."></textarea>
+    </div>
+    <button class="btn" onclick="submitRequest()">Submit request</button>
+    <div id="submit-msg"></div>
+  </section>
+
+  <!-- DOCTORS -->
+  <section class="panel" id="panel-doctors">
+    <h1>Doctors</h1>
+    <p class="sub">Create profiles via Pro Registry and toggle availability.</p>
+    <div class="row">
+      <input id="doc-specialty" type="text" placeholder="Specialty (e.g. cardiologie)" style="flex:1">
+      <input id="doc-description" type="text" placeholder="Description" style="flex:2">
+      <button class="btn small" onclick="createDoctor()">Add doctor</button>
+    </div>
+    <div id="doctors-msg"></div>
+    <div style="margin-top:16px;">
+      <div class="doctor-row head"><div>Specialty / description</div><div>ID</div><div>Status</div><div></div></div>
+      <div id="doctors-list"></div>
+    </div>
+  </section>
+
+  <!-- BOARD -->
+  <section class="panel" id="panel-board">
+    <h1>Live board</h1>
+    <p class="sub">Polls Evaluation's request feed every 3s. Manual accept/refuse/close buttons stand in for a real doctor client.</p>
+    <div class="board-row head">
+      <div></div><div>request</div><div>doctor / score</div><div>urgency</div><div>status</div><div>actions</div>
+    </div>
+    <div id="board-list"><div class="empty">Waiting for data…</div></div>
+  </section>
+
+  <!-- KPIS -->
+  <section class="panel" id="panel-kpis">
+    <h1>KPIs</h1>
+    <p class="sub">Computed by Evaluation from the full event log. Refreshes every 5s.</p>
+    <div id="kpis-content"><div class="empty">Waiting for data…</div></div>
+  </section>
+
+</main>
+
+<script>
+const cfg = () => ({
+  ingestion: document.getElementById('cfg-ingestion').value.replace(/\/$/,''),
+  pros: document.getElementById('cfg-pros').value.replace(/\/$/,''),
+  dispatch: document.getElementById('cfg-dispatch').value.replace(/\/$/,''),
+  eval: document.getElementById('cfg-eval').value.replace(/\/$/,''),
+});
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+  });
+});
+
+function showMsg(elId, text, ok) {
+  const el = document.getElementById(elId);
+  el.innerHTML = `<div class="msg ${ok ? 'ok' : 'err'}">${text}</div>`;
+  setTimeout(() => { el.innerHTML = ''; }, 5000);
+}
+
+// ---------- SUBMIT ----------
+async function submitRequest() {
+  const text = document.getElementById('submit-text').value.trim();
+  if (!text) return;
+  try {
+    const res = await fetch(`${cfg().ingestion}/requests`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        rawText: text,
+        contactChannel: 'web',
+        contactValue: 'dispatch-console',
+        source: 'dispatch-console'
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    showMsg('submit-msg', 'Request submitted — check the Live board for it shortly.', true);
+    document.getElementById('submit-text').value = '';
+  } catch (e) {
+    showMsg('submit-msg', `Failed to submit: ${e.message}. Check the Ingestion URL and CORS config.`, false);
+  }
+}
+
+// ---------- DOCTORS ----------
+let localDoctors = [];
+
+async function createDoctor() {
+  const specialty = document.getElementById('doc-specialty').value.trim();
+  const description = document.getElementById('doc-description').value.trim();
+  if (!specialty || !description) return;
+  try {
+    const res = await fetch(`${cfg().pros}/pros`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ specialty, description })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json().catch(() => ({}));
+    localDoctors.push({ id: data.id || data.proId || '(unknown)', specialty, description, available: true });
+    document.getElementById('doc-specialty').value = '';
+    document.getElementById('doc-description').value = '';
+    showMsg('doctors-msg', 'Doctor created.', true);
+    loadDoctors();
+  } catch (e) {
+    showMsg('doctors-msg', `Failed to create doctor: ${e.message}`, false);
+  }
+}
+
+async function toggleAvailability(id, current) {
+  try {
+    await fetch(`${cfg().pros}/pros/${id}/availability`, {
+      method: 'PATCH', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ available: !current })
+    });
+    localDoctors = localDoctors.map(d => d.id === id ? {...d, available: !current} : d);
+    loadDoctors();
+  } catch (e) {
+    showMsg('doctors-msg', `Failed to update availability: ${e.message}`, false);
+  }
+}
+
+async function loadDoctors() {
+  let doctors = localDoctors;
+  try {
+    const res = await fetch(`${cfg().pros}/pros`);
+    if (res.ok) doctors = await res.json();
+  } catch (e) { /* fall back to session-only tracking if the registry is unavailable */ }
+
+  const list = document.getElementById('doctors-list');
+  if (!doctors.length) { list.innerHTML = '<div class="empty">No doctors yet.</div>'; return; }
+  list.innerHTML = doctors.map(d => `
+    <div class="doctor-row">
+      <div><strong>${d.specialty || ''}</strong><div style="color:var(--ink-soft);font-size:12px">${d.description || ''}</div></div>
+      <div class="mono">${(d.id || '').toString().slice(0,8)}</div>
+      <div><span class="dot ${d.available ? 'on' : 'off'}"></span>${d.available ? 'Available' : 'Busy'}</div>
+      <div><button class="btn ghost small" onclick="toggleAvailability('${d.id}', ${!!d.available})">Toggle</button></div>
+    </div>
+  `).join('');
+}
+
+// ---------- BOARD ----------
+function urgencyClass(u) { return `u${u ?? 0}`; }
+
+async function loadBoard() {
+  try {
+    const res = await fetch(`${cfg().eval}/requests/recent?limit=30`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = await res.json();
+    const list = document.getElementById('board-list');
+    if (!rows.length) { list.innerHTML = '<div class="empty">No requests yet — submit one to see it here.</div>'; return; }
+    list.innerHTML = rows.map(r => `
+      <div class="board-row">
+        <div class="urgency-bar ${urgencyClass(r.urgency_score)}"></div>
+        <div class="mono">${r.request_id.slice(0,8)}</div>
+        <div class="mono" style="font-size:12px;color:var(--ink-soft)">${r.doctor_id ? r.doctor_id.slice(0,8) : '—'} ${r.match_score ? '· ' + r.match_score.toFixed(3) : ''}</div>
+        <div>${r.urgency_score ?? '—'}</div>
+        <div><span class="badge ${r.outcome}">${r.outcome.replace('_',' ')}</span></div>
+        <div class="actions">
+          ${r.outcome === 'pending' ? `
+            <button class="btn ghost small" onclick="assign('${r.request_id}','${r.doctor_id}','accept')">✓</button>
+            <button class="btn ghost small" onclick="assign('${r.request_id}','${r.doctor_id}','refuse')">✕</button>
+          ` : r.outcome === 'accepted' ? `
+            <button class="btn ghost small" onclick="assign('${r.request_id}','${r.doctor_id}','close')">Close</button>
+          ` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    document.getElementById('board-list').innerHTML = `<div class="empty">Couldn't reach Evaluation: ${e.message}</div>`;
+  }
+}
+
+async function assign(requestId, doctorId, action) {
+  try {
+    await fetch(`${cfg().dispatch}/assignments/${requestId}/${action}?doctorId=${doctorId}`, { method: 'POST' });
+    loadBoard();
+  } catch (e) {
+    alert(`Failed to ${action}: ${e.message}`);
+  }
+}
+
+// ---------- KPIS ----------
+function pct(n) { return n == null ? '—' : (n * 100).toFixed(0) + '%'; }
+function secs(n) { return n == null ? '—' : n.toFixed(1) + 's'; }
+
+async function loadKpis() {
+  try {
+    const res = await fetch(`${cfg().eval}/kpis`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const k = await res.json();
+    document.getElementById('kpis-content').innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="val mono">${secs(k.ttfa_seconds?.avg)}</div><div class="label">Avg time to first proposal</div></div>
+        <div class="kpi-card"><div class="val mono">${secs(k.ttfa_seconds?.median)}</div><div class="label">Median time to first proposal</div></div>
+        <div class="kpi-card"><div class="val mono">${k.avg_match_score_accepted != null ? k.avg_match_score_accepted.toFixed(3) : '—'}</div><div class="label">Avg match score (accepted)</div></div>
+      </div>
+      <div class="bar-row"><div style="width:110px">Accepted</div><div class="bar-track"><div class="bar-fill" style="width:${(k.acceptance_rate||0)*100}%;background:var(--t1)"></div></div><div class="mono">${pct(k.acceptance_rate)}</div></div>
+      <div class="bar-row"><div style="width:110px">Refused</div><div class="bar-track"><div class="bar-fill" style="width:${(k.refusal_rate||0)*100}%;background:var(--t3)"></div></div><div class="mono">${pct(k.refusal_rate)}</div></div>
+      <div class="bar-row"><div style="width:110px">Timed out</div><div class="bar-track"><div class="bar-fill" style="width:${(k.timeout_rate||0)*100}%;background:var(--t2)"></div></div><div class="mono">${pct(k.timeout_rate)}</div></div>
+      <p class="sub" style="margin-top:16px">Avg proposals per request: <span class="mono">${k.avg_proposals_per_request != null ? k.avg_proposals_per_request.toFixed(2) : '—'}</span></p>
+    `;
+  } catch (e) {
+    document.getElementById('kpis-content').innerHTML = `<div class="empty">Couldn't reach Evaluation: ${e.message}</div>`;
+  }
+}
+
+loadDoctors();
+loadBoard();
+loadKpis();
+setInterval(loadBoard, 3000);
+setInterval(loadKpis, 5000);
+setInterval(loadDoctors, 8000);
+</script>
+
+</body>
+</html>
