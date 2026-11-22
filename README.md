@@ -106,11 +106,12 @@ The gateway's `providers_configured` response shows which LLM providers are avai
 
 ## Run the Evaluation Service
 
-Start the infrastructure first, then run the evaluation service from its own directory. Its default PostgreSQL DSN expects `postgres/postgres`, which does not match this repository's Compose defaults, so set the DSN explicitly in PowerShell:
+Start the infrastructure first, then run the evaluation service from its own directory. Its default PostgreSQL DSN matches this repository's Compose defaults. If your database uses different credentials, override it in PowerShell:
 
 ```powershell
 Set-Location services-python/evaluation
-$env:EVALUATION_DB_DSN = "postgresql://pulsaride:pulsaride@localhost:5433/evaluation_db"
+# Optional when using non-default PostgreSQL credentials:
+# $env:EVALUATION_DB_DSN = "postgresql://<user>:<password>@localhost:5433/evaluation_db"
 python -m uvicorn main:app --host 0.0.0.0 --port 8091
 ```
 

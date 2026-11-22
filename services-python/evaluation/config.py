@@ -5,7 +5,7 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
 POSTGRES_DSN = os.getenv(
     "EVALUATION_DB_DSN",
-    "postgresql://postgres:postgres@localhost:5433/evaluation_db",
+    "postgresql://pulsaride:pulsaride@localhost:5433/evaluation_db",
 )
 
 CONSUMER_GROUP = os.getenv("EVALUATION_CONSUMER_GROUP", "evaluation-group")
